@@ -7,7 +7,7 @@ import { Spinner } from "@/components/ui/spinner"
 
 export const metadata = {
   title: "Search Housing | IHDA Housing Locator",
-  description: "Search affordable housing listings across Illinois with our interactive map.",
+  description: "Search affordable housing listings across Illinois with our interactive map. Filter by location, rent, bedrooms, accessibility features, and subsidy programs.",
 }
 
 export default function SearchPage() {
@@ -15,9 +15,16 @@ export default function SearchPage() {
     <div className="flex h-screen flex-col">
       <Navbar />
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Panel - Filters & Results */}
-        <aside className="hidden w-[420px] flex-col border-r border-border bg-card lg:flex">
-          <Suspense fallback={<div className="flex h-full items-center justify-center"><Spinner /></div>}>
+        {/* Left Panel - Filters & Results (Desktop) */}
+        <aside className="hidden w-[440px] flex-col border-r border-border bg-card lg:flex">
+          <Suspense fallback={
+            <div className="flex h-full items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <Spinner className="h-8 w-8" />
+                <p className="text-sm text-muted-foreground">Loading filters...</p>
+              </div>
+            </div>
+          }>
             <SearchFilters />
             <SearchResults />
           </Suspense>
@@ -25,7 +32,14 @@ export default function SearchPage() {
 
         {/* Main - Map */}
         <main className="relative flex-1">
-          <Suspense fallback={<div className="flex h-full items-center justify-center bg-muted"><Spinner /></div>}>
+          <Suspense fallback={
+            <div className="flex h-full items-center justify-center bg-muted">
+              <div className="flex flex-col items-center gap-3">
+                <Spinner className="h-8 w-8" />
+                <p className="text-sm text-muted-foreground">Loading map...</p>
+              </div>
+            </div>
+          }>
             <SearchMap />
           </Suspense>
         </main>
