@@ -1,9 +1,14 @@
+"use client"
+
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Phone, MessageCircle, Clock } from "lucide-react"
+import { useLanguage } from "@/lib/language-context"
 
 export function CTASection() {
+  const { t } = useLanguage()
+
   return (
     <section className="relative overflow-hidden bg-primary py-20 md:py-28">
       {/* Background Pattern */}
@@ -26,24 +31,23 @@ export function CTASection() {
           {/* Content */}
           <div className="text-center lg:text-left">
             <h2 className="mb-6 text-balance text-3xl font-bold tracking-tight text-white md:text-4xl lg:text-5xl">
-              Ready to Find Your New Home?
+              {t("ctaTitle")}
             </h2>
             <p className="mb-8 max-w-xl text-pretty text-lg text-white/80 lg:mx-0">
-              Start your search today or speak with a housing specialist who can help guide you 
-              through the process. Our team is here to support you every step of the way.
+              {t("ctaSubtitle")}
             </p>
 
             <div className="flex flex-col items-center gap-4 sm:flex-row lg:justify-start">
               <Link href="/search">
                 <Button size="lg" variant="secondary" className="gap-2 text-primary">
-                  Start Searching
+                  {t("startSearch")}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
               <a href="tel:1-312-836-5200">
                 <Button size="lg" variant="outline" className="gap-2 border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white">
                   <Phone className="h-4 w-4" />
-                  Call Us Now
+                  {t("callNow")}
                 </Button>
               </a>
             </div>
@@ -52,11 +56,11 @@ export function CTASection() {
             <div className="mt-10 flex flex-wrap items-center justify-center gap-6 lg:justify-start">
               <div className="flex items-center gap-2 text-white/70">
                 <Clock className="h-4 w-4" />
-                <span className="text-sm">Mon-Fri 8:00 AM - 5:00 PM</span>
+                <span className="text-sm">{t("mondayFriday")} 8:00 AM - 5:00 PM</span>
               </div>
               <div className="flex items-center gap-2 text-white/70">
                 <MessageCircle className="h-4 w-4" />
-                <span className="text-sm">Live chat available</span>
+                <span className="text-sm">{t("contactSupport")}</span>
               </div>
             </div>
           </div>
@@ -84,7 +88,7 @@ export function CTASection() {
                 </div>
                 <div>
                   <p className="font-semibold text-foreground">100,000+</p>
-                  <p className="text-sm text-muted-foreground">Families Housed</p>
+                  <p className="text-sm text-muted-foreground">{t("familiesHoused")}</p>
                 </div>
               </div>
             </div>

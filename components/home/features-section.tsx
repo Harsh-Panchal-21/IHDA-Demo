@@ -2,6 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { useLanguage } from "@/lib/language-context"
 import { 
   MapPin, 
   ClipboardList, 
@@ -15,58 +16,60 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 
-const features = [
-  {
-    icon: MapPin,
-    title: "Interactive Map Search",
-    description: "Explore housing options visually with our full-screen map interface. Filter by location, rent, amenities, and accessibility features.",
-    highlight: "Real-time updates",
-    link: "/search",
-  },
-  {
-    icon: ClipboardList,
-    title: "Waitlist Management",
-    description: "Apply to housing waitlists online and track your application status in real-time through your personalized dashboard.",
-    highlight: "Track applications",
-    link: "/dashboard",
-  },
-  {
-    icon: Bell,
-    title: "Smart Notifications",
-    description: "Receive instant alerts when new listings match your criteria or when your waitlist status changes.",
-    highlight: "Never miss out",
-    link: "/dashboard",
-  },
-  {
-    icon: Shield,
-    title: "Verified Listings",
-    description: "All properties are verified by IHDA to ensure they meet quality, safety, and affordability standards.",
-    highlight: "IHDA certified",
-    link: "/resources",
-  },
-  {
-    icon: Users,
-    title: "Case Manager Support",
-    description: "Connect with dedicated case managers who can guide you through the housing application process.",
-    highlight: "Personal help",
-    link: "/contact",
-  },
-  {
-    icon: Accessibility,
-    title: "Accessibility First",
-    description: "Search specifically for accessible units with features like wheelchair access, grab bars, visual alerts, and more.",
-    highlight: "ADA compliant",
-    link: "/search?accessible=true",
-  },
-]
-
-const stats = [
-  { icon: Zap, value: "< 1 min", label: "Average search time" },
-  { icon: Globe, value: "102", label: "Counties covered" },
-  { icon: Users, value: "100K+", label: "Families helped" },
-]
-
 export function FeaturesSection() {
+  const { t } = useLanguage()
+
+  const features = [
+    {
+      icon: MapPin,
+      titleKey: "feature1Title",
+      descKey: "feature1Desc",
+      highlight: t("mapView"),
+      link: "/search",
+    },
+    {
+      icon: ClipboardList,
+      titleKey: "feature2Title",
+      descKey: "feature2Desc",
+      highlight: t("myApplications"),
+      link: "/dashboard",
+    },
+    {
+      icon: Bell,
+      titleKey: "feature3Title",
+      descKey: "feature3Desc",
+      highlight: t("notifications"),
+      link: "/dashboard",
+    },
+    {
+      icon: Shield,
+      titleKey: "feature4Title",
+      descKey: "feature4Desc",
+      highlight: t("verified"),
+      link: "/resources",
+    },
+    {
+      icon: Users,
+      titleKey: "contactSupport",
+      descKey: "contactSupportDesc",
+      highlight: t("contact"),
+      link: "/contact",
+    },
+    {
+      icon: Accessibility,
+      titleKey: "accessibility",
+      descKey: "mobilityFeatures",
+      highlight: t("wheelchairAccessible"),
+      link: "/search?accessible=true",
+    },
+  ]
+
+  const stats = [
+    { icon: Zap, value: "< 1 min", labelKey: "searchHousing" },
+    { icon: Globe, value: "102", labelKey: "counties" },
+    { icon: Users, value: "100K+", labelKey: "familiesHoused" },
+  ]
+
   return (
     <section className="relative overflow-hidden bg-muted/30 py-20 md:py-28">
       {/* Background decoration */}
@@ -78,14 +81,13 @@ export function FeaturesSection() {
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <Badge className="mb-4 bg-primary/10 text-primary hover:bg-primary/10">
             <Zap className="mr-2 h-3.5 w-3.5" />
-            Powerful Features
+            {t("features")}
           </Badge>
           <h2 className="mb-4 text-balance text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-            Everything You Need to Find Housing
+            {t("whyChooseUs")}
           </h2>
           <p className="text-pretty text-lg text-muted-foreground">
-            Our platform provides comprehensive tools to help Illinois residents find, apply for, 
-            and secure affordable housing quickly and easily.
+            {t("heroSubtitle")}
           </p>
         </div>
 
@@ -106,13 +108,13 @@ export function FeaturesSection() {
                     </Badge>
                   </div>
                   <h3 className="mb-2 text-lg font-semibold text-foreground group-hover:text-primary">
-                    {feature.title}
+                    {t(feature.titleKey)}
                   </h3>
                   <p className="flex-1 text-sm leading-relaxed text-muted-foreground">
-                    {feature.description}
+                    {t(feature.descKey)}
                   </p>
                   <div className="mt-4 flex items-center text-sm font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
-                    Learn more
+                    {t("learnMore")}
                     <ArrowRight className="ml-1 h-4 w-4" />
                   </div>
                 </CardContent>
@@ -129,7 +131,7 @@ export function FeaturesSection() {
                 <stat.icon className="h-6 w-6 text-primary" />
               </div>
               <p className="text-2xl font-bold text-foreground md:text-3xl">{stat.value}</p>
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
+              <p className="text-sm text-muted-foreground">{t(stat.labelKey)}</p>
             </div>
           ))}
         </div>

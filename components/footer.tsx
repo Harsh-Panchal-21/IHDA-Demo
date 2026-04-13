@@ -1,7 +1,10 @@
+"use client"
+
 import Link from "next/link"
 import { Home, Phone, Mail, MapPin, Facebook, Twitter, Youtube, Linkedin, ArrowUpRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useLanguage } from "@/lib/language-context"
 
 const socialLinks = [
   { name: "Facebook", icon: Facebook, href: "#" },
@@ -11,6 +14,8 @@ const socialLinks = [
 ]
 
 export function Footer() {
+  const { t } = useLanguage()
+
   return (
     <footer className="border-t border-border bg-muted/30">
       {/* Newsletter Section */}
@@ -18,18 +23,18 @@ export function Footer() {
         <div className="container mx-auto px-4">
           <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
             <div>
-              <h3 className="mb-2 text-lg font-semibold text-foreground">Stay Updated</h3>
+              <h3 className="mb-2 text-lg font-semibold text-foreground">{t("newsletter")}</h3>
               <p className="text-sm text-muted-foreground">
-                Get the latest housing listings and resources delivered to your inbox.
+                {t("newsletterDesc")}
               </p>
             </div>
             <div className="flex w-full max-w-md gap-3">
               <Input 
                 type="email" 
-                placeholder="Enter your email" 
+                placeholder={t("enterEmail")} 
                 className="bg-background"
               />
-              <Button>Subscribe</Button>
+              <Button>{t("subscribe")}</Button>
             </div>
           </div>
         </div>
@@ -55,6 +60,7 @@ export function Footer() {
             </p>
             {/* Social Links */}
             <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground mr-2">{t("followUs")}:</span>
               {socialLinks.map((social) => (
                 <a
                   key={social.name}
@@ -70,31 +76,31 @@ export function Footer() {
 
           {/* Quick Links */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">Navigation</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">{t("home")}</h3>
             <ul className="space-y-3">
               <li>
                 <Link href="/search" className="text-sm text-muted-foreground transition-colors hover:text-primary">
-                  Search Housing
+                  {t("searchHousing")}
                 </Link>
               </li>
               <li>
                 <Link href="/resources" className="text-sm text-muted-foreground transition-colors hover:text-primary">
-                  Resources
+                  {t("resources")}
                 </Link>
               </li>
               <li>
                 <Link href="/dashboard" className="text-sm text-muted-foreground transition-colors hover:text-primary">
-                  My Dashboard
+                  {t("myDashboard")}
                 </Link>
               </li>
               <li>
                 <Link href="/contact" className="text-sm text-muted-foreground transition-colors hover:text-primary">
-                  Contact Us
+                  {t("contactUs")}
                 </Link>
               </li>
               <li>
                 <Link href="/about" className="text-sm text-muted-foreground transition-colors hover:text-primary">
-                  About IHDA
+                  {t("aboutUs")}
                 </Link>
               </li>
             </ul>
@@ -102,31 +108,31 @@ export function Footer() {
 
           {/* Programs */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">Programs</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">{t("programs")}</h3>
             <ul className="space-y-3">
               <li>
                 <Link href="/programs/section-8" className="text-sm text-muted-foreground transition-colors hover:text-primary">
-                  Section 8 Vouchers
+                  {t("section8")}
                 </Link>
               </li>
               <li>
                 <Link href="/programs/lihtc" className="text-sm text-muted-foreground transition-colors hover:text-primary">
-                  Tax Credit Housing
+                  {t("taxCredit")}
                 </Link>
               </li>
               <li>
                 <Link href="/programs/public-housing" className="text-sm text-muted-foreground transition-colors hover:text-primary">
-                  Public Housing
+                  {t("publicHousing")}
                 </Link>
               </li>
               <li>
                 <Link href="/programs/senior" className="text-sm text-muted-foreground transition-colors hover:text-primary">
-                  Senior Housing
+                  {t("seniorHousing")}
                 </Link>
               </li>
               <li>
                 <Link href="/programs/emergency" className="text-sm text-muted-foreground transition-colors hover:text-primary">
-                  Emergency Assistance
+                  {t("emergencyHousing")}
                 </Link>
               </li>
             </ul>
@@ -134,7 +140,7 @@ export function Footer() {
 
           {/* Contact */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">Contact</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">{t("contact")}</h3>
             <ul className="space-y-3">
               <li className="flex items-start gap-2 text-sm text-muted-foreground">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
@@ -168,20 +174,20 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border pt-8 md:flex-row">
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} Illinois Housing Development Authority. All rights reserved.
+            &copy; {new Date().getFullYear()} {t("copyright")}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
             <Link href="/privacy" className="text-sm text-muted-foreground transition-colors hover:text-primary">
-              Privacy Policy
+              {t("privacyPolicy")}
             </Link>
             <Link href="/terms" className="text-sm text-muted-foreground transition-colors hover:text-primary">
-              Terms of Service
+              {t("termsOfService")}
             </Link>
             <Link href="/accessibility" className="text-sm text-muted-foreground transition-colors hover:text-primary">
-              Accessibility
+              {t("accessibility")}
             </Link>
             <Link href="/sitemap" className="text-sm text-muted-foreground transition-colors hover:text-primary">
-              Sitemap
+              {t("sitemap")}
             </Link>
           </div>
         </div>

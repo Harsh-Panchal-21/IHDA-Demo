@@ -6,11 +6,10 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { useLanguage } from "@/lib/language-context"
 import { 
   Search, 
   MapPin, 
-  ArrowRight, 
-  ChevronRight,
   Home,
   Building2,
   Users,
@@ -26,12 +25,6 @@ const popularSearches = [
   { name: "Aurora", count: "245" },
 ]
 
-const propertyTypes = [
-  { label: "Apartments", icon: Building2, count: "12,450" },
-  { label: "Houses", icon: Home, count: "3,280" },
-  { label: "Senior Living", icon: Users, count: "1,890" },
-]
-
 const featuredImages = [
   "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&h=400&fit=crop",
   "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600&h=400&fit=crop",
@@ -39,9 +32,16 @@ const featuredImages = [
 ]
 
 export function HeroSection() {
+  const { t } = useLanguage()
   const [searchQuery, setSearchQuery] = useState("")
   const [isVisible, setIsVisible] = useState(false)
   const [currentImage, setCurrentImage] = useState(0)
+
+  const propertyTypes = [
+    { label: t("apartment"), labelKey: "apartments", icon: Building2, count: "12,450" },
+    { label: t("house"), labelKey: "houses", icon: Home, count: "3,280" },
+    { label: t("seniorHousing"), labelKey: "senior", icon: Users, count: "1,890" },
+  ]
 
   useEffect(() => {
     setIsVisible(true)
@@ -86,14 +86,12 @@ export function HeroSection() {
 
             {/* Headline */}
             <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl mb-6">
-              <span className="block text-balance">Discover Your</span>
-              <span className="block text-primary">Affordable Home</span>
+              <span className="block text-balance">{t("heroTitle")}</span>
             </h1>
 
             {/* Description */}
             <p className="text-lg text-muted-foreground max-w-lg mb-8 text-pretty">
-              Search thousands of verified affordable housing listings across Illinois. 
-              Find your perfect home with transparent pricing and real-time availability.
+              {t("heroSubtitle")}
             </p>
 
             {/* Search Box - Zillow Style */}
@@ -103,7 +101,7 @@ export function HeroSection() {
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
                     type="text"
-                    placeholder="Enter an address, city, or ZIP code"
+                    placeholder={t("searchPlaceholder")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="h-14 pl-12 pr-4 border-0 text-base bg-transparent focus-visible:ring-0 shadow-none"
@@ -111,7 +109,7 @@ export function HeroSection() {
                 </div>
                 <Link href={`/search${searchQuery ? `?q=${encodeURIComponent(searchQuery)}` : ""}`}>
                   <Button size="lg" className="h-14 px-8 text-base w-full sm:w-auto">
-                    Search
+                    {t("search")}
                   </Button>
                 </Link>
               </div>
@@ -119,7 +117,7 @@ export function HeroSection() {
 
             {/* Popular Searches */}
             <div className="mb-10">
-              <p className="text-sm text-muted-foreground mb-3">Popular searches:</p>
+              <p className="text-sm text-muted-foreground mb-3">{t("popularCities")}</p>
               <div className="flex flex-wrap gap-2">
                 {popularSearches.map((city) => (
                   <Link
@@ -141,11 +139,11 @@ export function HeroSection() {
             {/* Property Types */}
             <div className="grid grid-cols-3 gap-4">
               {propertyTypes.map((type) => (
-                <Link key={type.label} href={`/search?type=${type.label.toLowerCase()}`}>
+                <Link key={type.labelKey} href={`/search?type=${type.labelKey}`}>
                   <div className="group p-4 rounded-xl border border-border bg-white hover:border-primary hover:shadow-md transition-all cursor-pointer">
                     <type.icon className="h-6 w-6 text-muted-foreground group-hover:text-primary mb-2 transition-colors" />
                     <p className="font-medium text-foreground group-hover:text-primary transition-colors">{type.label}</p>
-                    <p className="text-sm text-muted-foreground">{type.count} listings</p>
+                    <p className="text-sm text-muted-foreground">{type.count} {t("properties").toLowerCase()}</p>
                   </div>
                 </Link>
               ))}
@@ -169,7 +167,7 @@ export function HeroSection() {
                 
                 {/* Image Overlay Content */}
                 <div className="absolute bottom-0 left-0 right-0 p-6">
-                  <Badge className="bg-emerald-500 text-white mb-3">Available Now</Badge>
+                  <Badge className="bg-emerald-500 text-white mb-3">{t("available")}</Badge>
                   <h3 className="text-xl font-semibold text-white mb-1">Modern 2BR in Lincoln Park</h3>
                   <p className="flex items-center gap-2 text-white/90 text-sm">
                     <MapPin className="h-4 w-4" />
@@ -202,7 +200,7 @@ export function HeroSection() {
                     </div>
                     <div>
                       <p className="text-2xl font-bold text-foreground">50K+</p>
-                      <p className="text-sm text-muted-foreground">Housing Units</p>
+                      <p className="text-sm text-muted-foreground">{t("propertiesAvailable")}</p>
                     </div>
                   </div>
                 </div>
@@ -216,7 +214,7 @@ export function HeroSection() {
                     </div>
                     <div>
                       <p className="text-2xl font-bold text-foreground">98%</p>
-                      <p className="text-sm text-muted-foreground">Success Rate</p>
+                      <p className="text-sm text-muted-foreground">{t("success")}</p>
                     </div>
                   </div>
                 </div>
@@ -258,19 +256,19 @@ export function HeroSection() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 p-8 rounded-2xl bg-white/80 backdrop-blur-sm border border-border shadow-lg">
             <div className="text-center">
               <p className="text-3xl font-bold text-primary mb-1">50,000+</p>
-              <p className="text-sm text-muted-foreground">Available Units</p>
+              <p className="text-sm text-muted-foreground">{t("propertiesAvailable")}</p>
             </div>
             <div className="text-center">
               <p className="text-3xl font-bold text-foreground mb-1">102</p>
-              <p className="text-sm text-muted-foreground">Counties Served</p>
+              <p className="text-sm text-muted-foreground">{t("counties")}</p>
             </div>
             <div className="text-center">
               <p className="text-3xl font-bold text-foreground mb-1">15+</p>
-              <p className="text-sm text-muted-foreground">Housing Programs</p>
+              <p className="text-sm text-muted-foreground">{t("programs")}</p>
             </div>
             <div className="text-center">
               <p className="text-3xl font-bold text-emerald-600 mb-1">100K+</p>
-              <p className="text-sm text-muted-foreground">Families Helped</p>
+              <p className="text-sm text-muted-foreground">{t("familiesHoused")}</p>
             </div>
           </div>
         </div>

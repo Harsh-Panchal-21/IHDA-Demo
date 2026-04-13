@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { useLanguage } from "@/lib/language-context"
 import {
   Popover,
   PopoverContent,
@@ -20,15 +21,12 @@ import { Slider } from "@/components/ui/slider"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { 
-  Search, 
   SlidersHorizontal, 
   MapPin, 
   ChevronDown,
   X,
-  Home,
   DollarSign,
   Bed,
-  Bath,
   Accessibility,
   Shield
 } from "lucide-react"
@@ -59,15 +57,14 @@ const programs = [
 ]
 
 const accessibilityOptions = [
-  "Wheelchair Accessible",
-  "Elevator",
-  "Grab Bars",
-  "Roll-in Shower",
-  "Visual Alerts",
-  "Hearing Assistance",
+  "wheelchairAccessible",
+  "hearingAccessible",
+  "visualAccessible",
+  "mobilityFeatures",
 ]
 
 export function SearchHeader({ filters, onFiltersChange, propertyCount }: SearchHeaderProps) {
+  const { t } = useLanguage()
   const [searchQuery, setSearchQuery] = useState("Chicago, IL")
   const [priceRange, setPriceRange] = useState([filters.minRent, filters.maxRent])
   const [selectedPrograms, setSelectedPrograms] = useState<string[]>(filters.programs)
@@ -90,7 +87,7 @@ export function SearchHeader({ filters, onFiltersChange, propertyCount }: Search
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="City, ZIP, or address"
+            placeholder={t("searchPlaceholder")}
             className="pl-9 pr-4 h-10 bg-background"
           />
         </div>
@@ -102,14 +99,14 @@ export function SearchHeader({ filters, onFiltersChange, propertyCount }: Search
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2 h-10">
                 <DollarSign className="h-4 w-4" />
-                Price
+                {t("price")}
                 <ChevronDown className="h-3 w-3 opacity-50" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80" align="start">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-medium">Price Range</h4>
+                  <h4 className="font-medium">{t("priceRange")}</h4>
                   <span className="text-sm text-muted-foreground">
                     ${priceRange[0]} - ${priceRange[1]}
                   </span>
@@ -124,7 +121,7 @@ export function SearchHeader({ filters, onFiltersChange, propertyCount }: Search
                 />
                 <div className="flex gap-3">
                   <div className="flex-1">
-                    <Label className="text-xs text-muted-foreground">Min</Label>
+                    <Label className="text-xs text-muted-foreground">{t("minPrice")}</Label>
                     <Input
                       type="number"
                       value={priceRange[0]}
@@ -133,7 +130,7 @@ export function SearchHeader({ filters, onFiltersChange, propertyCount }: Search
                     />
                   </div>
                   <div className="flex-1">
-                    <Label className="text-xs text-muted-foreground">Max</Label>
+                    <Label className="text-xs text-muted-foreground">{t("maxPrice")}</Label>
                     <Input
                       type="number"
                       value={priceRange[1]}
@@ -147,7 +144,7 @@ export function SearchHeader({ filters, onFiltersChange, propertyCount }: Search
                   size="sm"
                   onClick={() => onFiltersChange({ ...filters, minRent: priceRange[0], maxRent: priceRange[1] })}
                 >
-                  Apply
+                  {t("apply")}
                 </Button>
               </div>
             </PopoverContent>
@@ -158,14 +155,14 @@ export function SearchHeader({ filters, onFiltersChange, propertyCount }: Search
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2 h-10">
                 <Bed className="h-4 w-4" />
-                Beds / Baths
+                {t("bedsAndBaths")}
                 <ChevronDown className="h-3 w-3 opacity-50" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-72" align="start">
               <div className="space-y-4">
                 <div>
-                  <Label className="text-sm font-medium">Bedrooms</Label>
+                  <Label className="text-sm font-medium">{t("bedrooms")}</Label>
                   <div className="flex gap-1 mt-2">
                     {["any", "0", "1", "2", "3", "4+"].map((bed) => (
                       <Button
@@ -175,13 +172,13 @@ export function SearchHeader({ filters, onFiltersChange, propertyCount }: Search
                         className="flex-1 h-9"
                         onClick={() => onFiltersChange({ ...filters, bedrooms: bed })}
                       >
-                        {bed === "0" ? "Studio" : bed}
+                        {bed === "any" ? t("anyBeds") : bed === "0" ? t("studio") : bed}
                       </Button>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Bathrooms</Label>
+                  <Label className="text-sm font-medium">{t("bathrooms")}</Label>
                   <div className="flex gap-1 mt-2">
                     {["any", "1", "2", "3+"].map((bath) => (
                       <Button
@@ -191,7 +188,7 @@ export function SearchHeader({ filters, onFiltersChange, propertyCount }: Search
                         className="flex-1 h-9"
                         onClick={() => onFiltersChange({ ...filters, bathrooms: bath })}
                       >
-                        {bath}
+                        {bath === "any" ? t("anyBaths") : bath}
                       </Button>
                     ))}
                   </div>
@@ -205,7 +202,7 @@ export function SearchHeader({ filters, onFiltersChange, propertyCount }: Search
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2 h-10">
                 <Shield className="h-4 w-4" />
-                Programs
+                {t("programs")}
                 {selectedPrograms.length > 0 && (
                   <Badge variant="secondary" className="ml-1 h-5 px-1.5">
                     {selectedPrograms.length}
@@ -216,7 +213,7 @@ export function SearchHeader({ filters, onFiltersChange, propertyCount }: Search
             </PopoverTrigger>
             <PopoverContent className="w-64" align="start">
               <div className="space-y-3">
-                <h4 className="font-medium">Housing Programs</h4>
+                <h4 className="font-medium">{t("programs")}</h4>
                 <div className="space-y-2">
                   {programs.map((program) => (
                     <label
@@ -246,13 +243,13 @@ export function SearchHeader({ filters, onFiltersChange, propertyCount }: Search
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2 h-10">
                 <Accessibility className="h-4 w-4" />
-                Accessibility
+                {t("accessibility")}
                 <ChevronDown className="h-3 w-3 opacity-50" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-64" align="start">
               <div className="space-y-3">
-                <h4 className="font-medium">Accessibility Features</h4>
+                <h4 className="font-medium">{t("accessibility")}</h4>
                 <div className="space-y-2">
                   {accessibilityOptions.map((option) => (
                     <label
@@ -269,7 +266,7 @@ export function SearchHeader({ filters, onFiltersChange, propertyCount }: Search
                           )
                         }}
                       />
-                      <span className="text-sm">{option}</span>
+                      <span className="text-sm">{t(option)}</span>
                     </label>
                   ))}
                 </div>
@@ -282,14 +279,14 @@ export function SearchHeader({ filters, onFiltersChange, propertyCount }: Search
             value={filters.status}
             onValueChange={(value) => onFiltersChange({ ...filters, status: value })}
           >
-            <SelectTrigger className="w-[140px] h-10">
-              <SelectValue placeholder="Status" />
+            <SelectTrigger className="w-[160px] h-10">
+              <SelectValue placeholder={t("available")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="available">Available Now</SelectItem>
-              <SelectItem value="waitlist-open">Waitlist Open</SelectItem>
-              <SelectItem value="coming-soon">Coming Soon</SelectItem>
+              <SelectItem value="all">{t("viewAll")}</SelectItem>
+              <SelectItem value="available">{t("available")}</SelectItem>
+              <SelectItem value="waitlist-open">{t("waitlistOpen")}</SelectItem>
+              <SelectItem value="coming-soon">{t("comingSoon")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -297,7 +294,7 @@ export function SearchHeader({ filters, onFiltersChange, propertyCount }: Search
         {/* Mobile Filters Button */}
         <Button variant="outline" size="sm" className="md:hidden gap-2 h-10">
           <SlidersHorizontal className="h-4 w-4" />
-          Filters
+          {t("filters")}
           {activeFilterCount > 0 && (
             <Badge variant="secondary" className="h-5 px-1.5">
               {activeFilterCount}
@@ -308,22 +305,22 @@ export function SearchHeader({ filters, onFiltersChange, propertyCount }: Search
         {/* All Filters Button */}
         <Button variant="outline" size="sm" className="hidden md:flex gap-2 h-10">
           <SlidersHorizontal className="h-4 w-4" />
-          All Filters
+          {t("moreFilters")}
         </Button>
 
         {/* Save Search */}
         <Button variant="ghost" size="sm" className="hidden lg:flex h-10">
-          Save Search
+          {t("saveProperty")}
         </Button>
       </div>
 
       {/* Active Filters Bar */}
       {activeFilterCount > 0 && (
         <div className="flex items-center gap-2 px-3 pb-3 flex-wrap">
-          <span className="text-sm text-muted-foreground">Active filters:</span>
+          <span className="text-sm text-muted-foreground">{t("filters")}:</span>
           {filters.bedrooms !== "any" && (
             <Badge variant="secondary" className="gap-1">
-              {filters.bedrooms === "0" ? "Studio" : `${filters.bedrooms} Beds`}
+              {filters.bedrooms === "0" ? t("studio") : `${filters.bedrooms} ${t("beds")}`}
               <button onClick={() => onFiltersChange({ ...filters, bedrooms: "any" })}>
                 <X className="h-3 w-3" />
               </button>
@@ -364,7 +361,7 @@ export function SearchHeader({ filters, onFiltersChange, propertyCount }: Search
               })
             }}
           >
-            Clear all
+            {t("clearAll")}
           </button>
         </div>
       )}
@@ -372,18 +369,18 @@ export function SearchHeader({ filters, onFiltersChange, propertyCount }: Search
       {/* Results Count */}
       <div className="flex items-center justify-between px-3 pb-2 border-t border-border pt-2">
         <p className="text-sm text-muted-foreground">
-          <span className="font-semibold text-foreground">{propertyCount}</span> affordable rentals
+          <span className="font-semibold text-foreground">{propertyCount}</span> {t("propertiesFound")}
         </p>
         <Select defaultValue="recommended">
           <SelectTrigger className="w-[160px] h-8 text-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="recommended">Recommended</SelectItem>
-            <SelectItem value="price-low">Price: Low to High</SelectItem>
-            <SelectItem value="price-high">Price: High to Low</SelectItem>
-            <SelectItem value="newest">Newest</SelectItem>
-            <SelectItem value="sqft">Square Feet</SelectItem>
+            <SelectItem value="recommended">{t("relevance")}</SelectItem>
+            <SelectItem value="price-low">{t("priceLowHigh")}</SelectItem>
+            <SelectItem value="price-high">{t("priceHighLow")}</SelectItem>
+            <SelectItem value="newest">{t("newest")}</SelectItem>
+            <SelectItem value="sqft">{t("squareFeet")}</SelectItem>
           </SelectContent>
         </Select>
       </div>

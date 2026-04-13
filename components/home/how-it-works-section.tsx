@@ -4,39 +4,42 @@ import { Badge } from "@/components/ui/badge"
 import { Search, FileText, Home, CheckCircle, ArrowRight } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-
-const steps = [
-  {
-    icon: Search,
-    step: "01",
-    title: "Search Properties",
-    description: "Use our interactive map and advanced filters to find housing that matches your needs, budget, and accessibility requirements.",
-    color: "bg-primary",
-  },
-  {
-    icon: FileText,
-    step: "02",
-    title: "Apply Online",
-    description: "Submit your application and required documents through our secure online portal. Track your submission in real-time.",
-    color: "bg-emerald-500",
-  },
-  {
-    icon: Home,
-    step: "03",
-    title: "Join Waitlist",
-    description: "Get placed on the waitlist and monitor your position through your personalized dashboard. Receive updates automatically.",
-    color: "bg-amber-500",
-  },
-  {
-    icon: CheckCircle,
-    step: "04",
-    title: "Move In",
-    description: "Once approved, complete your lease paperwork and move into your new affordable home with confidence.",
-    color: "bg-rose-500",
-  },
-]
+import { useLanguage } from "@/lib/language-context"
 
 export function HowItWorksSection() {
+  const { t } = useLanguage()
+
+  const steps = [
+    {
+      icon: Search,
+      step: "01",
+      titleKey: "step1Title",
+      descKey: "step1Desc",
+      color: "bg-primary",
+    },
+    {
+      icon: FileText,
+      step: "02",
+      titleKey: "step2Title",
+      descKey: "step2Desc",
+      color: "bg-emerald-500",
+    },
+    {
+      icon: Home,
+      step: "03",
+      titleKey: "step3Title",
+      descKey: "step3Desc",
+      color: "bg-amber-500",
+    },
+    {
+      icon: CheckCircle,
+      step: "04",
+      titleKey: "step4Title",
+      descKey: "step4Desc",
+      color: "bg-rose-500",
+    },
+  ]
+
   return (
     <section className="relative overflow-hidden bg-background py-20 md:py-28">
       {/* Background decoration */}
@@ -46,13 +49,13 @@ export function HowItWorksSection() {
         {/* Section Header */}
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <Badge className="mb-4 bg-primary/10 text-primary hover:bg-primary/10">
-            Simple Process
+            {t("howItWorks")}
           </Badge>
           <h2 className="mb-4 text-balance text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-            How It Works
+            {t("howItWorks")}
           </h2>
           <p className="text-pretty text-lg text-muted-foreground">
-            Finding affordable housing in Illinois is simple with our streamlined four-step process.
+            {t("heroSubtitle")}
           </p>
         </div>
 
@@ -79,10 +82,10 @@ export function HowItWorksSection() {
                 {/* Content */}
                 <div className="text-center">
                   <h3 className="mb-3 text-xl font-semibold text-foreground">
-                    {item.title}
+                    {t(item.titleKey)}
                   </h3>
                   <p className="text-sm leading-relaxed text-muted-foreground">
-                    {item.description}
+                    {t(item.descKey)}
                   </p>
                 </div>
               </div>
@@ -108,14 +111,14 @@ export function HowItWorksSection() {
               <div className="flex-1 pb-8">
                 <div className="mb-2 flex items-center gap-3">
                   <span className={`rounded-full px-2 py-0.5 text-xs font-bold text-white ${item.color}`}>
-                    Step {item.step}
+                    {item.step}
                   </span>
                 </div>
                 <h3 className="mb-2 text-lg font-semibold text-foreground">
-                  {item.title}
+                  {t(item.titleKey)}
                 </h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  {item.description}
+                  {t(item.descKey)}
                 </p>
               </div>
             </div>
@@ -126,7 +129,7 @@ export function HowItWorksSection() {
         <div className="mt-16 text-center">
           <Link href="/search">
             <Button size="lg" className="gap-2">
-              Get Started Today
+              {t("getStarted")}
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
