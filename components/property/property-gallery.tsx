@@ -28,10 +28,10 @@ export function PropertyGallery({ images, title }: PropertyGalleryProps) {
     <>
       <section className="relative bg-muted">
         {/* Desktop Gallery Grid */}
-        <div className="container mx-auto hidden gap-2 p-4 md:grid md:grid-cols-4 md:grid-rows-2">
+        <div className="container mx-auto hidden gap-2 p-4 md:grid md:grid-cols-4 md:grid-rows-2 h-[400px]">
           {/* Main Image */}
           <div 
-            className="relative col-span-2 row-span-2 cursor-pointer overflow-hidden rounded-l-xl"
+            className="relative col-span-2 row-span-2 cursor-pointer overflow-hidden rounded-l-xl min-h-[380px]"
             onClick={() => {
               setCurrentIndex(0)
               setLightboxOpen(true)
@@ -50,7 +50,7 @@ export function PropertyGallery({ images, title }: PropertyGalleryProps) {
           {images.slice(1, 5).map((image, index) => (
             <div
               key={index}
-              className={`relative cursor-pointer overflow-hidden ${
+              className={`relative cursor-pointer overflow-hidden min-h-[186px] ${
                 index === 1 ? "rounded-tr-xl" : index === 3 ? "rounded-br-xl" : ""
               }`}
               onClick={() => {
