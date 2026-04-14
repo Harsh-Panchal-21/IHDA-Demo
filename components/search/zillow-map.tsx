@@ -21,8 +21,8 @@ import {
   ChevronRight,
   MapPin,
   Navigation2,
-  Move,
-  RotateCcw
+  RotateCcw,
+  Grip
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -47,15 +47,68 @@ interface ZillowMapProps {
 }
 
 const mapStyles = [
-  { id: "streets", label: "Streets", bg: "#f8f4f0" },
-  { id: "satellite", label: "Satellite", bg: "#1a3a2f" },
-  { id: "light", label: "Light", bg: "#fafafa" },
+  { id: "streets", label: "Streets", url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png" },
+  { id: "light", label: "Light", url: "https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png" },
+  { id: "satellite", label: "Satellite", url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" },
 ]
 
-const MIN_ZOOM = 8
+const MIN_ZOOM = 10
 const MAX_ZOOM = 18
-const DEFAULT_CENTER = { lat: 41.8781, lng: -87.6298 }
-const DEFAULT_ZOOM = 12
+const TILE_SIZE = 256
+const DEFAULT_CENTER = { lat: 41.8781, lng: -87.6298 } // Chicago
+const DEFAULT_ZOOM = 13
+
+// Convert lat/lng to tile coordinates
+function latLngToTile(lat: number, lng: number, zoom: number) {
+  const n = Math.pow(2, zoom)
+  const x = Math.floor((lng + 180) / 360 * n)
+  const latRad = lat * Math.PI / 180
+  const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n)
+  return { x, y }
+}
+
+// Convert lat/lng to pixel coordinates within the map container
+function latLngToPixel(lat: number, lng: number, zoom: number, centerLat: number, centerLng: number, containerWidth: number, containerHeight: number) {
+  const scale = Math.pow(2, zoom)
+  const worldSize = TILE_SIZE * scale
+  
+  // Convert to world coordinates
+  const centerX = ((centerLng + 180) / 360) * worldSize
+  const centerLatRad = centerLat * Math.PI / 180
+  const centerY = ((1 - Math.log(Math.tan(centerLatRad) + 1 / Math.cos(centerLatRad)) / Math.PI) / 2) * worldSize
+  
+  const pointX = ((lng + 180) / 360) * worldSize
+  const pointLatRad = lat * Math.PI / 180
+  const pointY = ((1 - Math.log(Math.tan(pointLatRad) + 1 / Math.cos(pointLatRad)) / Math.PI) / 2) * worldSize
+  
+  // Convert to container coordinates
+  const x = (pointX - centerX) + containerWidth / 2
+  const y = (pointY - centerY) + containerHeight / 2
+  
+  return { x, y }
+}
+
+// Convert pixel to lat/lng
+function pixelToLatLng(pixelX: number, pixelY: number, zoom: number, centerLat: number, centerLng: number, containerWidth: number, containerHeight: number) {
+  const scale = Math.pow(2, zoom)
+  const worldSize = TILE_SIZE * scale
+  
+  // Center world coordinates
+  const centerX = ((centerLng + 180) / 360) * worldSize
+  const centerLatRad = centerLat * Math.PI / 180
+  const centerY = ((1 - Math.log(Math.tan(centerLatRad) + 1 / Math.cos(centerLatRad)) / Math.PI) / 2) * worldSize
+  
+  // Point world coordinates
+  const pointX = centerX + (pixelX - containerWidth / 2)
+  const pointY = centerY + (pixelY - containerHeight / 2)
+  
+  // Convert back to lat/lng
+  const lng = (pointX / worldSize) * 360 - 180
+  const latRad = Math.atan(Math.sinh(Math.PI * (1 - 2 * pointY / worldSize)))
+  const lat = latRad * 180 / Math.PI
+  
+  return { lat, lng }
+}
 
 export function ZillowMap({
   properties,
@@ -66,51 +119,90 @@ export function ZillowMap({
 }: ZillowMapProps) {
   const [zoom, setZoom] = useState(DEFAULT_ZOOM)
   const [center, setCenter] = useState(DEFAULT_CENTER)
-  const [mapStyle, setMapStyle] = useState("streets")
+  const [mapStyleId, setMapStyleId] = useState("streets")
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [popupProperty, setPopupProperty] = useState<Property | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [dragStartCenter, setDragStartCenter] = useState(DEFAULT_CENTER)
+  const [containerSize, setContainerSize] = useState({ width: 800, height: 600 })
+  const [tiles, setTiles] = useState<{ x: number; y: number; url: string }[]>([])
+  const [tileOffset, setTileOffset] = useState({ x: 0, y: 0 })
   
-  const mapRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Calculate position for each property pin
-  const getPosition = useCallback((lat: number, lng: number) => {
-    const scale = Math.pow(2, zoom - 10)
-    const latRange = 0.35 / scale
-    const lngRange = 0.5 / scale
-    
-    const minLat = center.lat - latRange
-    const maxLat = center.lat + latRange
-    const minLng = center.lng - lngRange
-    const maxLng = center.lng + lngRange
-
-    const x = ((lng - minLng) / (maxLng - minLng)) * 100
-    const y = ((maxLat - lat) / (maxLat - minLat)) * 100
-
-    return { 
-      x: Math.max(-10, Math.min(110, x)), 
-      y: Math.max(-10, Math.min(110, y)),
-      visible: x >= -10 && x <= 110 && y >= -10 && y <= 110
+  // Update container size
+  useEffect(() => {
+    const updateSize = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect()
+        setContainerSize({ width: rect.width, height: rect.height })
+      }
     }
-  }, [zoom, center])
+    updateSize()
+    window.addEventListener("resize", updateSize)
+    return () => window.removeEventListener("resize", updateSize)
+  }, [isFullscreen])
 
-  // Convert screen position to lat/lng
-  const screenToLatLng = useCallback((screenX: number, screenY: number, rect: DOMRect) => {
-    const scale = Math.pow(2, zoom - 10)
-    const latRange = 0.35 / scale
-    const lngRange = 0.5 / scale
+  // Calculate tiles to display
+  useEffect(() => {
+    const currentStyle = mapStyles.find(s => s.id === mapStyleId) || mapStyles[0]
+    const scale = Math.pow(2, zoom)
+    const worldSize = TILE_SIZE * scale
     
-    const x = (screenX - rect.left) / rect.width
-    const y = (screenY - rect.top) / rect.height
+    // Center in world pixels
+    const centerX = ((center.lng + 180) / 360) * worldSize
+    const centerLatRad = center.lat * Math.PI / 180
+    const centerY = ((1 - Math.log(Math.tan(centerLatRad) + 1 / Math.cos(centerLatRad)) / Math.PI) / 2) * worldSize
     
-    const lng = center.lng - lngRange + (x * 2 * lngRange)
-    const lat = center.lat + latRange - (y * 2 * latRange)
+    // Calculate tile range needed
+    const tilesX = Math.ceil(containerSize.width / TILE_SIZE) + 2
+    const tilesY = Math.ceil(containerSize.height / TILE_SIZE) + 2
     
-    return { lat, lng }
-  }, [zoom, center])
+    const centerTileX = Math.floor(centerX / TILE_SIZE)
+    const centerTileY = Math.floor(centerY / TILE_SIZE)
+    
+    const startTileX = centerTileX - Math.floor(tilesX / 2)
+    const startTileY = centerTileY - Math.floor(tilesY / 2)
+    
+    // Calculate pixel offset for smooth positioning
+    const offsetX = (centerX % TILE_SIZE) - containerSize.width / 2 + (tilesX / 2) * TILE_SIZE
+    const offsetY = (centerY % TILE_SIZE) - containerSize.height / 2 + (tilesY / 2) * TILE_SIZE
+    
+    setTileOffset({ x: -offsetX, y: -offsetY })
+    
+    const newTiles: { x: number; y: number; url: string }[] = []
+    const maxTile = Math.pow(2, Math.floor(zoom))
+    
+    for (let y = 0; y < tilesY; y++) {
+      for (let x = 0; x < tilesX; x++) {
+        const tileX = startTileX + x
+        const tileY = startTileY + y
+        
+        // Wrap tiles horizontally, skip invalid vertical tiles
+        const wrappedX = ((tileX % maxTile) + maxTile) % maxTile
+        if (tileY >= 0 && tileY < maxTile) {
+          const url = currentStyle.url
+            .replace("{z}", Math.floor(zoom).toString())
+            .replace("{x}", wrappedX.toString())
+            .replace("{y}", tileY.toString())
+          newTiles.push({ x, y, url })
+        }
+      }
+    }
+    
+    setTiles(newTiles)
+  }, [center, zoom, containerSize, mapStyleId])
+
+  // Get pixel position for a property
+  const getPropertyPosition = useCallback((lat: number, lng: number) => {
+    const pos = latLngToPixel(lat, lng, zoom, center.lat, center.lng, containerSize.width, containerSize.height)
+    return {
+      x: pos.x,
+      y: pos.y,
+      visible: pos.x >= -50 && pos.x <= containerSize.width + 50 && pos.y >= -50 && pos.y <= containerSize.height + 50
+    }
+  }, [zoom, center, containerSize])
 
   // Zoom functions
   const handleZoomIn = useCallback(() => {
@@ -130,58 +222,70 @@ export function ZillowMap({
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault()
     
-    const rect = mapRef.current?.getBoundingClientRect()
-    if (!rect) return
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
     
-    // Get mouse position relative to map
-    const mouseLatLng = screenToLatLng(e.clientX, e.clientY, rect)
+    // Get mouse position relative to container
+    const mouseX = e.clientX - rect.left
+    const mouseY = e.clientY - rect.top
+    
+    // Get lat/lng at mouse position
+    const mouseLatLng = pixelToLatLng(mouseX, mouseY, zoom, center.lat, center.lng, containerSize.width, containerSize.height)
     
     // Calculate new zoom
-    const delta = e.deltaY > 0 ? -1 : 1
-    const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom + delta * 0.5))
+    const delta = e.deltaY > 0 ? -0.5 : 0.5
+    const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom + delta))
     
     if (newZoom === zoom) return
     
-    // Adjust center to zoom towards mouse position
-    const zoomFactor = Math.pow(2, newZoom - zoom)
-    const newCenter = {
-      lat: mouseLatLng.lat - (mouseLatLng.lat - center.lat) / zoomFactor,
-      lng: mouseLatLng.lng - (mouseLatLng.lng - center.lng) / zoomFactor
-    }
+    // Get the new pixel position of the mouse lat/lng at the new zoom
+    const newMousePixel = latLngToPixel(mouseLatLng.lat, mouseLatLng.lng, newZoom, center.lat, center.lng, containerSize.width, containerSize.height)
+    
+    // Calculate the new center so that the mouse lat/lng stays under the cursor
+    const newCenterLatLng = pixelToLatLng(
+      containerSize.width / 2 + (newMousePixel.x - mouseX),
+      containerSize.height / 2 + (newMousePixel.y - mouseY),
+      newZoom,
+      center.lat,
+      center.lng,
+      containerSize.width,
+      containerSize.height
+    )
     
     setZoom(newZoom)
-    setCenter(newCenter)
-  }, [zoom, center, screenToLatLng])
+    setCenter(newCenterLatLng)
+  }, [zoom, center, containerSize])
 
   // Drag to pan
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button !== 0) return // Only left click
-    if ((e.target as HTMLElement).closest('button')) return // Ignore button clicks
+    if (e.button !== 0) return
+    const target = e.target as HTMLElement
+    if (target.closest('button') || target.closest('a')) return
     
+    e.preventDefault()
     setIsDragging(true)
     setDragStart({ x: e.clientX, y: e.clientY })
     setDragStartCenter({ ...center })
   }, [center])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging || !mapRef.current) return
-    
-    const rect = mapRef.current.getBoundingClientRect()
-    const scale = Math.pow(2, zoom - 10)
-    const latRange = 0.35 / scale
-    const lngRange = 0.5 / scale
+    if (!isDragging) return
     
     const dx = e.clientX - dragStart.x
     const dy = e.clientY - dragStart.y
     
-    const lngDelta = (dx / rect.width) * 2 * lngRange
-    const latDelta = (dy / rect.height) * 2 * latRange
+    const newCenter = pixelToLatLng(
+      containerSize.width / 2 - dx,
+      containerSize.height / 2 - dy,
+      zoom,
+      dragStartCenter.lat,
+      dragStartCenter.lng,
+      containerSize.width,
+      containerSize.height
+    )
     
-    setCenter({
-      lat: dragStartCenter.lat + latDelta,
-      lng: dragStartCenter.lng - lngDelta
-    })
-  }, [isDragging, dragStart, dragStartCenter, zoom])
+    setCenter(newCenter)
+  }, [isDragging, dragStart, dragStartCenter, zoom, containerSize])
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false)
@@ -190,6 +294,9 @@ export function ZillowMap({
   // Touch support
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 1) {
+      const target = e.target as HTMLElement
+      if (target.closest('button') || target.closest('a')) return
+      
       const touch = e.touches[0]
       setIsDragging(true)
       setDragStart({ x: touch.clientX, y: touch.clientY })
@@ -198,31 +305,30 @@ export function ZillowMap({
   }, [center])
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging || e.touches.length !== 1 || !mapRef.current) return
+    if (!isDragging || e.touches.length !== 1) return
     
     const touch = e.touches[0]
-    const rect = mapRef.current.getBoundingClientRect()
-    const scale = Math.pow(2, zoom - 10)
-    const latRange = 0.35 / scale
-    const lngRange = 0.5 / scale
-    
     const dx = touch.clientX - dragStart.x
     const dy = touch.clientY - dragStart.y
     
-    const lngDelta = (dx / rect.width) * 2 * lngRange
-    const latDelta = (dy / rect.height) * 2 * latRange
+    const newCenter = pixelToLatLng(
+      containerSize.width / 2 - dx,
+      containerSize.height / 2 - dy,
+      zoom,
+      dragStartCenter.lat,
+      dragStartCenter.lng,
+      containerSize.width,
+      containerSize.height
+    )
     
-    setCenter({
-      lat: dragStartCenter.lat + latDelta,
-      lng: dragStartCenter.lng - lngDelta
-    })
-  }, [isDragging, dragStart, dragStartCenter, zoom])
+    setCenter(newCenter)
+  }, [isDragging, dragStart, dragStartCenter, zoom, containerSize])
 
   const handleTouchEnd = useCallback(() => {
     setIsDragging(false)
   }, [])
 
-  // Handle keyboard shortcuts
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -231,16 +337,25 @@ export function ZillowMap({
       }
       if (e.key === "+" || e.key === "=") handleZoomIn()
       if (e.key === "-" || e.key === "_") handleZoomOut()
+      
       // Arrow keys for panning
-      const panAmount = 0.02 / Math.pow(2, zoom - 10)
-      if (e.key === "ArrowUp") setCenter(c => ({ ...c, lat: c.lat + panAmount }))
-      if (e.key === "ArrowDown") setCenter(c => ({ ...c, lat: c.lat - panAmount }))
-      if (e.key === "ArrowLeft") setCenter(c => ({ ...c, lng: c.lng - panAmount }))
-      if (e.key === "ArrowRight") setCenter(c => ({ ...c, lng: c.lng + panAmount }))
+      const panPixels = 100
+      if (e.key === "ArrowUp") {
+        setCenter(c => pixelToLatLng(containerSize.width / 2, containerSize.height / 2 - panPixels, zoom, c.lat, c.lng, containerSize.width, containerSize.height))
+      }
+      if (e.key === "ArrowDown") {
+        setCenter(c => pixelToLatLng(containerSize.width / 2, containerSize.height / 2 + panPixels, zoom, c.lat, c.lng, containerSize.width, containerSize.height))
+      }
+      if (e.key === "ArrowLeft") {
+        setCenter(c => pixelToLatLng(containerSize.width / 2 - panPixels, containerSize.height / 2, zoom, c.lat, c.lng, containerSize.width, containerSize.height))
+      }
+      if (e.key === "ArrowRight") {
+        setCenter(c => pixelToLatLng(containerSize.width / 2 + panPixels, containerSize.height / 2, zoom, c.lat, c.lng, containerSize.width, containerSize.height))
+      }
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [isFullscreen, handleZoomIn, handleZoomOut, zoom])
+  }, [isFullscreen, handleZoomIn, handleZoomOut, zoom, containerSize])
 
   // Handle location
   const handleLocate = () => {
@@ -250,20 +365,8 @@ export function ZillowMap({
           lat: position.coords.latitude,
           lng: position.coords.longitude
         })
-        setZoom(14)
+        setZoom(15)
       })
-    }
-  }
-
-  // Get style classes based on map style
-  const getMapClasses = () => {
-    switch (mapStyle) {
-      case "satellite":
-        return "bg-[#1a3628]"
-      case "light":
-        return "bg-[#fafafa]"
-      default:
-        return "bg-[#f5f1eb]"
     }
   }
 
@@ -277,323 +380,51 @@ export function ZillowMap({
     }
   }, [hoveredProperty, properties])
 
-  // Zoom percentage display
   const zoomPercentage = Math.round(((zoom - MIN_ZOOM) / (MAX_ZOOM - MIN_ZOOM)) * 100)
 
   return (
     <TooltipProvider>
       <div 
         ref={containerRef}
-        className={`relative h-full w-full overflow-hidden select-none ${isFullscreen ? "fixed inset-0 z-50" : ""}`}
+        className={`relative h-full w-full overflow-hidden select-none ${isFullscreen ? "fixed inset-0 z-50 bg-background" : ""}`}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{ cursor: isDragging ? "grabbing" : "grab" }}
       >
-        {/* Map Background */}
+        {/* Map Tiles */}
         <div 
-          ref={mapRef}
-          className={`absolute inset-0 transition-colors duration-300 ${getMapClasses()} ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
-          onWheel={handleWheel}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
+          className="absolute"
+          style={{
+            transform: `translate(${tileOffset.x}px, ${tileOffset.y}px)`,
+            willChange: "transform"
+          }}
         >
-          {/* Water (Lake Michigan) */}
-          <div 
-            className={`absolute right-0 top-0 h-full w-[35%] transition-colors duration-300 ${
-              mapStyle === "satellite" 
-                ? "bg-[#0d4f5f]" 
-                : mapStyle === "light"
-                ? "bg-[#d4e9f7]"
-                : "bg-[#aad3e5]"
-            }`}
-            style={{
-              transform: `translateX(${(center.lng + 87.5) * 50}%)`,
-            }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-background/20" />
-          </div>
-
-          {/* Street Grid - scales with zoom */}
-          <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
-            <defs>
-              <pattern 
-                id="streets-grid" 
-                width={60 * (zoom / 12)} 
-                height={60 * (zoom / 12)} 
-                patternUnits="userSpaceOnUse"
-              >
-                <path 
-                  d={`M ${60 * (zoom / 12)} 0 L 0 0 0 ${60 * (zoom / 12)}`}
-                  fill="none" 
-                  stroke={mapStyle === "satellite" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"} 
-                  strokeWidth="1"
-                />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#streets-grid)" />
-          </svg>
-
-          {/* Major Roads */}
-          <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <line 
-              x1="0" y1="30" x2="65" y2="30" 
-              stroke={mapStyle === "satellite" ? "#3d6a5e" : "#e8e5df"}
-              strokeWidth={0.8 * (12 / zoom)} 
+          {tiles.map((tile) => (
+            <img
+              key={`${tile.x}-${tile.y}-${Math.floor(zoom)}`}
+              src={tile.url}
+              alt=""
+              className="absolute"
+              style={{
+                left: tile.x * TILE_SIZE,
+                top: tile.y * TILE_SIZE,
+                width: TILE_SIZE,
+                height: TILE_SIZE,
+              }}
+              draggable={false}
             />
-            <line 
-              x1="0" y1="50" x2="65" y2="50" 
-              stroke={mapStyle === "satellite" ? "#3d6a5e" : "#e8e5df"}
-              strokeWidth={0.8 * (12 / zoom)} 
-            />
-            <line 
-              x1="0" y1="70" x2="65" y2="70" 
-              stroke={mapStyle === "satellite" ? "#3d6a5e" : "#e8e5df"}
-              strokeWidth={0.8 * (12 / zoom)} 
-            />
-            <line 
-              x1="30" y1="0" x2="30" y2="100" 
-              stroke={mapStyle === "satellite" ? "#4a7a6e" : "#ddd9d3"}
-              strokeWidth={1.2 * (12 / zoom)} 
-            />
-            <line 
-              x1="50" y1="0" x2="50" y2="100" 
-              stroke={mapStyle === "satellite" ? "#4a7a6e" : "#ddd9d3"}
-              strokeWidth={1.2 * (12 / zoom)} 
-            />
-            <path 
-              d="M 65 0 Q 62 50 65 100" 
-              fill="none" 
-              stroke={mapStyle === "satellite" ? "#5a8a7e" : "#ccc8c2"}
-              strokeWidth={1.5 * (12 / zoom)} 
-            />
-          </svg>
-
-          {/* Parks */}
-          {mapStyle !== "satellite" && (
-            <>
-              <div className="absolute left-[18%] top-[22%] h-[10%] w-[14%] rounded-2xl bg-[#c5e1b5]/60" />
-              <div className="absolute left-[42%] top-[45%] h-[8%] w-[8%] rounded-xl bg-[#c5e1b5]/50" />
-              <div className="absolute left-[25%] top-[65%] h-[6%] w-[10%] rounded-lg bg-[#c5e1b5]/50" />
-            </>
-          )}
-
-          {/* Downtown indicator */}
-          <div className="absolute left-[40%] top-[42%] h-[16%] w-[14%] rounded-lg border border-dashed border-muted-foreground/10 bg-muted/5" />
-
-          {/* Street Names - visible at higher zoom levels */}
-          {zoom >= 11 && (
-            <div className="absolute inset-0 pointer-events-none">
-              {/* Horizontal Streets */}
-              <div 
-                className={`absolute left-[5%] top-[29%] px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase ${
-                  mapStyle === "satellite" ? "text-white/70" : "text-muted-foreground/80"
-                }`}
-                style={{ fontSize: `${Math.max(9, zoom - 2)}px` }}
-              >
-                W Madison St
-              </div>
-              <div 
-                className={`absolute left-[5%] top-[49%] px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase ${
-                  mapStyle === "satellite" ? "text-white/70" : "text-muted-foreground/80"
-                }`}
-                style={{ fontSize: `${Math.max(9, zoom - 2)}px` }}
-              >
-                W Congress Pkwy
-              </div>
-              <div 
-                className={`absolute left-[5%] top-[69%] px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase ${
-                  mapStyle === "satellite" ? "text-white/70" : "text-muted-foreground/80"
-                }`}
-                style={{ fontSize: `${Math.max(9, zoom - 2)}px` }}
-              >
-                W Roosevelt Rd
-              </div>
-
-              {/* Vertical Streets */}
-              <div 
-                className={`absolute left-[28%] top-[8%] px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase origin-left ${
-                  mapStyle === "satellite" ? "text-white/70" : "text-muted-foreground/80"
-                }`}
-                style={{ 
-                  fontSize: `${Math.max(9, zoom - 2)}px`,
-                  transform: 'rotate(90deg)',
-                  transformOrigin: 'left center'
-                }}
-              >
-                S Halsted St
-              </div>
-              <div 
-                className={`absolute left-[48%] top-[8%] px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase origin-left ${
-                  mapStyle === "satellite" ? "text-white/70" : "text-muted-foreground/80"
-                }`}
-                style={{ 
-                  fontSize: `${Math.max(9, zoom - 2)}px`,
-                  transform: 'rotate(90deg)',
-                  transformOrigin: 'left center'
-                }}
-              >
-                S State St
-              </div>
-
-              {/* Lake Shore Drive - curved label */}
-              <div 
-                className={`absolute right-[32%] top-[15%] px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase ${
-                  mapStyle === "satellite" ? "text-cyan-300/80" : "text-primary/70"
-                }`}
-                style={{ 
-                  fontSize: `${Math.max(10, zoom - 1)}px`,
-                  transform: 'rotate(-8deg)'
-                }}
-              >
-                N Lake Shore Dr
-              </div>
-
-              {/* More detailed streets at higher zoom */}
-              {zoom >= 13 && (
-                <>
-                  <div 
-                    className={`absolute left-[15%] top-[38%] px-1 py-0.5 text-[9px] font-medium tracking-wide ${
-                      mapStyle === "satellite" ? "text-white/60" : "text-muted-foreground/60"
-                    }`}
-                  >
-                    W Adams St
-                  </div>
-                  <div 
-                    className={`absolute left-[15%] top-[58%] px-1 py-0.5 text-[9px] font-medium tracking-wide ${
-                      mapStyle === "satellite" ? "text-white/60" : "text-muted-foreground/60"
-                    }`}
-                  >
-                    W Harrison St
-                  </div>
-                  <div 
-                    className={`absolute left-[38%] top-[8%] px-1 py-0.5 text-[9px] font-medium tracking-wide origin-left ${
-                      mapStyle === "satellite" ? "text-white/60" : "text-muted-foreground/60"
-                    }`}
-                    style={{ transform: 'rotate(90deg)', transformOrigin: 'left center' }}
-                  >
-                    S Clark St
-                  </div>
-                  <div 
-                    className={`absolute left-[55%] top-[8%] px-1 py-0.5 text-[9px] font-medium tracking-wide origin-left ${
-                      mapStyle === "satellite" ? "text-white/60" : "text-muted-foreground/60"
-                    }`}
-                    style={{ transform: 'rotate(90deg)', transformOrigin: 'left center' }}
-                  >
-                    S Michigan Ave
-                  </div>
-                </>
-              )}
-
-              {/* Even more detail at highest zoom */}
-              {zoom >= 15 && (
-                <>
-                  <div 
-                    className={`absolute left-[22%] top-[24%] px-1 py-0.5 text-[8px] font-medium ${
-                      mapStyle === "satellite" ? "text-white/50" : "text-muted-foreground/50"
-                    }`}
-                  >
-                    W Washington St
-                  </div>
-                  <div 
-                    className={`absolute left-[22%] top-[44%] px-1 py-0.5 text-[8px] font-medium ${
-                      mapStyle === "satellite" ? "text-white/50" : "text-muted-foreground/50"
-                    }`}
-                  >
-                    W Van Buren St
-                  </div>
-                  <div 
-                    className={`absolute left-[22%] top-[62%] px-1 py-0.5 text-[8px] font-medium ${
-                      mapStyle === "satellite" ? "text-white/50" : "text-muted-foreground/50"
-                    }`}
-                  >
-                    W Polk St
-                  </div>
-                  <div 
-                    className={`absolute left-[33%] top-[8%] px-1 py-0.5 text-[8px] font-medium origin-left ${
-                      mapStyle === "satellite" ? "text-white/50" : "text-muted-foreground/50"
-                    }`}
-                    style={{ transform: 'rotate(90deg)', transformOrigin: 'left center' }}
-                  >
-                    S Dearborn St
-                  </div>
-                  <div 
-                    className={`absolute left-[43%] top-[8%] px-1 py-0.5 text-[8px] font-medium origin-left ${
-                      mapStyle === "satellite" ? "text-white/50" : "text-muted-foreground/50"
-                    }`}
-                    style={{ transform: 'rotate(90deg)', transformOrigin: 'left center' }}
-                  >
-                    S Wabash Ave
-                  </div>
-                </>
-              )}
-
-              {/* Park Labels */}
-              {zoom >= 12 && (
-                <>
-                  <div 
-                    className={`absolute left-[20%] top-[25%] px-2 py-1 text-[10px] font-semibold italic ${
-                      mapStyle === "satellite" ? "text-emerald-300/80" : "text-emerald-700/70"
-                    }`}
-                    style={{ fontSize: `${Math.max(9, zoom - 3)}px` }}
-                  >
-                    Union Park
-                  </div>
-                  <div 
-                    className={`absolute left-[43%] top-[47%] px-2 py-1 text-[10px] font-semibold italic ${
-                      mapStyle === "satellite" ? "text-emerald-300/80" : "text-emerald-700/70"
-                    }`}
-                    style={{ fontSize: `${Math.max(9, zoom - 3)}px` }}
-                  >
-                    Grant Park
-                  </div>
-                </>
-              )}
-
-              {/* Lake Michigan Label */}
-              <div 
-                className={`absolute right-[8%] top-[45%] px-3 py-1 text-sm font-bold italic tracking-widest ${
-                  mapStyle === "satellite" ? "text-cyan-200/60" : "text-blue-400/50"
-                }`}
-                style={{ fontSize: `${Math.max(12, zoom)}px` }}
-              >
-                Lake Michigan
-              </div>
-
-              {/* Neighborhood Labels at medium zoom */}
-              {zoom >= 11 && zoom <= 14 && (
-                <>
-                  <div 
-                    className={`absolute left-[35%] top-[35%] px-2 py-1 text-xs font-bold tracking-wide ${
-                      mapStyle === "satellite" ? "text-white/40" : "text-foreground/30"
-                    }`}
-                  >
-                    THE LOOP
-                  </div>
-                  <div 
-                    className={`absolute left-[15%] top-[55%] px-2 py-1 text-xs font-bold tracking-wide ${
-                      mapStyle === "satellite" ? "text-white/40" : "text-foreground/30"
-                    }`}
-                  >
-                    SOUTH LOOP
-                  </div>
-                  <div 
-                    className={`absolute left-[12%] top-[18%] px-2 py-1 text-xs font-bold tracking-wide ${
-                      mapStyle === "satellite" ? "text-white/40" : "text-foreground/30"
-                    }`}
-                  >
-                    WEST TOWN
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+          ))}
         </div>
 
         {/* Property Pins */}
         {properties.map((property) => {
-          const pos = getPosition(property.lat, property.lng)
+          const pos = getPropertyPosition(property.lat, property.lng)
           if (!pos.visible) return null
           
           const isSelected = selectedProperty?.id === property.id
@@ -606,8 +437,8 @@ export function ZillowMap({
                 isSelected || isHovered ? "z-30 scale-110" : "z-10 hover:z-20 hover:scale-105"
               }`}
               style={{ 
-                left: `${pos.x}%`, 
-                top: `${pos.y}%`,
+                left: pos.x, 
+                top: pos.y,
               }}
               onClick={(e) => {
                 e.stopPropagation()
@@ -666,7 +497,8 @@ export function ZillowMap({
         {popupProperty && (
           <PropertyPopup
             property={popupProperty}
-            position={getPosition(popupProperty.lat, popupProperty.lng)}
+            position={getPropertyPosition(popupProperty.lat, popupProperty.lng)}
+            containerSize={containerSize}
             onClose={() => setPopupProperty(null)}
           />
         )}
@@ -692,7 +524,6 @@ export function ZillowMap({
               </TooltipContent>
             </Tooltip>
             
-            {/* Zoom level indicator */}
             <div className="flex h-8 items-center justify-center border-b border-border bg-muted/50 text-xs font-medium text-muted-foreground">
               {zoomPercentage}%
             </div>
@@ -767,13 +598,9 @@ export function ZillowMap({
               {mapStyles.map((style) => (
                 <DropdownMenuItem
                   key={style.id}
-                  onClick={() => setMapStyle(style.id)}
-                  className={mapStyle === style.id ? "bg-accent" : ""}
+                  onClick={() => setMapStyleId(style.id)}
+                  className={mapStyleId === style.id ? "bg-accent" : ""}
                 >
-                  <div 
-                    className="mr-2 h-4 w-4 rounded border border-border"
-                    style={{ backgroundColor: style.bg }}
-                  />
                   {style.label}
                 </DropdownMenuItem>
               ))}
@@ -812,10 +639,10 @@ export function ZillowMap({
 
         {/* Drag hint */}
         {!isDragging && (
-          <div className="absolute left-4 top-16">
-            <Badge variant="outline" className="gap-1.5 px-2 py-1 text-xs bg-card/80 backdrop-blur-sm">
-              <Move className="h-3 w-3" />
-              Drag to pan
+          <div className="absolute left-4 top-14">
+            <Badge variant="outline" className="gap-1.5 px-2 py-1 text-xs bg-card/90 backdrop-blur-sm shadow">
+              <Grip className="h-3 w-3" />
+              Drag to pan | Scroll to zoom
             </Badge>
           </div>
         )}
@@ -838,9 +665,14 @@ export function ZillowMap({
           </div>
         </div>
 
-        {/* Zoom level indicator bottom right */}
+        {/* Zoom level indicator */}
         <div className="absolute bottom-4 right-4 rounded-md border border-border bg-card/95 px-2 py-1 text-xs text-muted-foreground shadow-lg backdrop-blur-sm">
-          Zoom: {zoom.toFixed(1)}x
+          Zoom: {zoom.toFixed(1)}
+        </div>
+
+        {/* Attribution */}
+        <div className="absolute bottom-4 right-24 rounded-md bg-card/80 px-2 py-0.5 text-[10px] text-muted-foreground backdrop-blur-sm">
+          OpenStreetMap
         </div>
 
         {/* Fullscreen Exit */}
@@ -848,7 +680,7 @@ export function ZillowMap({
           <Button
             variant="secondary"
             size="sm"
-            className="absolute left-4 top-28 gap-2 shadow-lg"
+            className="absolute left-4 top-24 gap-2 shadow-lg"
             onClick={() => setIsFullscreen(false)}
           >
             <X className="h-4 w-4" />
@@ -863,19 +695,36 @@ export function ZillowMap({
 interface PropertyPopupProps {
   property: Property
   position: { x: number; y: number }
+  containerSize: { width: number; height: number }
   onClose: () => void
 }
 
-function PropertyPopup({ property, position, onClose }: PropertyPopupProps) {
-  const adjustedX = Math.max(20, Math.min(position.x, 65))
-  const adjustedY = Math.max(10, position.y - 5)
+function PropertyPopup({ property, position, containerSize, onClose }: PropertyPopupProps) {
+  // Adjust position to keep popup within bounds
+  const popupWidth = 288
+  const popupHeight = 260
+  
+  let adjustedX = position.x
+  let adjustedY = position.y - 10
+  
+  // Keep within horizontal bounds
+  if (adjustedX - popupWidth / 2 < 10) {
+    adjustedX = popupWidth / 2 + 10
+  } else if (adjustedX + popupWidth / 2 > containerSize.width - 10) {
+    adjustedX = containerSize.width - popupWidth / 2 - 10
+  }
+  
+  // Keep within vertical bounds
+  if (adjustedY - popupHeight < 10) {
+    adjustedY = position.y + popupHeight + 40 // Show below pin instead
+  }
 
   return (
     <div
       className="absolute z-40 w-72 animate-in fade-in zoom-in-95 duration-200 pointer-events-auto"
       style={{
-        left: `${adjustedX}%`,
-        top: `${adjustedY}%`,
+        left: adjustedX,
+        top: adjustedY,
         transform: "translate(-50%, -100%)",
       }}
     >
