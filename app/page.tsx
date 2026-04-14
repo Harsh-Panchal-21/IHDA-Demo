@@ -1,5 +1,6 @@
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
+import { SupportBanner } from "@/components/support-banner"
 import { HeroSection } from "@/components/home/hero-section"
 import { FeaturesSection } from "@/components/home/features-section"
 import { FeaturedListings } from "@/components/home/featured-listings"
@@ -12,6 +13,7 @@ import { CTASection } from "@/components/home/cta-section"
 export default function HomePage() {
   return (
     <div className="flex min-h-screen flex-col">
+      <SupportBanner />
       <Navbar />
       <main className="flex-1">
         <HeroSection />

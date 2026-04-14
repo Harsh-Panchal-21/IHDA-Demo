@@ -56,7 +56,7 @@ const programs = [
 const resources = [
   { titleKey: "applicationGuide", descKey: "applicationGuideDesc", href: "/resources#apply", icon: FileText },
   { titleKey: "faq", descKey: "faqDesc", href: "/resources#faq", icon: HelpCircle },
-  { titleKey: "contactSupport", descKey: "contactSupportDesc", href: "/contact", icon: Phone },
+  { titleKey: "contactSupport", descKey: "contactSupportDesc", href: "/support", icon: Phone },
   { titleKey: "emergencyHousing", descKey: "emergencyHousingDesc", href: "/resources#emergency", icon: Shield },
 ]
 

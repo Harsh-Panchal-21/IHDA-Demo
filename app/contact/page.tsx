@@ -1,5 +1,6 @@
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
+import { SupportBanner } from "@/components/support-banner"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -61,6 +62,7 @@ const contactReasons = [
 export default function ContactPage() {
   return (
     <div className="flex min-h-screen flex-col">
+      <SupportBanner />
       <Navbar />
       <main className="flex-1">
         {/* Hero Section */}

@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react"
 import { Navbar } from "@/components/navbar"
+import { SupportBanner } from "@/components/support-banner"
 import { ZillowMap } from "@/components/search/zillow-map"
 import { PropertyList } from "@/components/search/property-list"
 import { SearchHeader } from "@/components/search/search-header"
@@ -121,6 +122,7 @@ export default function SearchPage() {
 
   return (
     <div className="flex h-screen flex-col bg-background">
+      <SupportBanner />
       <Navbar />
       
       {/* Search Header */}

@@ -138,36 +138,39 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Contact */}
+          {/* Contact & Support */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">{t("contact")}</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">{t("contact")} & {t("customerSupport") || "Support"}</h3>
             <ul className="space-y-3">
+              <li>
+                <a href="tel:1-800-555-IHDA" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary">
+                  <Phone className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="font-medium">1-800-555-IHDA</span>
+                  <span className="text-xs">({t("tollFree") || "Toll-Free"})</span>
+                </a>
+              </li>
+              <li>
+                <a href="mailto:support@ihda.org" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary">
+                  <Mail className="h-4 w-4 shrink-0 text-primary" />
+                  <span>support@ihda.org</span>
+                </a>
+              </li>
               <li className="flex items-start gap-2 text-sm text-muted-foreground">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <span>111 E. Wacker Drive<br />Chicago, IL 60601</span>
               </li>
-              <li>
-                <a href="tel:1-312-836-5200" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary">
-                  <Phone className="h-4 w-4 shrink-0 text-primary" />
-                  <span>312-836-5200</span>
-                </a>
-              </li>
-              <li>
-                <a href="mailto:info@ihda.org" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary">
-                  <Mail className="h-4 w-4 shrink-0 text-primary" />
-                  <span>info@ihda.org</span>
-                </a>
-              </li>
             </ul>
-            <a 
-              href="https://www.ihda.org" 
-              target="_blank" 
-              rel="noopener noreferrer"
+            <div className="rounded-md bg-primary/5 p-3 text-xs text-muted-foreground">
+              <p className="font-medium text-foreground">{t("supportHours") || "9 AM - 5 PM CST, 7 Days"}</p>
+              <p>{t("languagesAvailable") || "English, Spanish, Polish"}</p>
+            </div>
+            <Link 
+              href="/support"
               className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
             >
-              Visit ihda.org
+              {t("getHelp") || "Get Help"}
               <ArrowUpRight className="h-3.5 w-3.5" />
-            </a>
+            </Link>
           </div>
         </div>
 
