@@ -34,7 +34,6 @@ interface ZillowMapProps {
   properties: Property[]
   selectedProperty: Property | null
   hoveredProperty: string | null
-  onPropertySelect: (property: Property) => void
   onPropertyHover: (propertyId: string | null) => void
   center?: { lat: number; lng: number }
   zoom?: number
@@ -62,7 +61,6 @@ export function ZillowMap({
   properties,
   selectedProperty,
   hoveredProperty,
-  onPropertySelect,
   onPropertyHover,
   center = DEFAULT_CENTER,
   zoom = DEFAULT_ZOOM,
@@ -300,8 +298,8 @@ export function ZillowMap({
         // Only trigger click if mouse didn't move significantly
         if (!markerHasMoved && markerMouseDownPos) {
           e.stopPropagation()
-          onPropertySelect(property)
-          setPopupProperty(property)
+          // Navigate to property detail page
+          window.location.href = `/property/${property.id}`
         }
         markerMouseDownPos = null
         markerHasMoved = false
@@ -319,7 +317,7 @@ export function ZillowMap({
 
       markersRef.current.set(property.id, marker)
     })
-  }, [properties, selectedProperty, hoveredProperty, isMapReady, createPriceIcon, onPropertySelect, onPropertyHover])
+  }, [properties, selectedProperty, hoveredProperty, isMapReady, createPriceIcon, onPropertyHover])
 
   // Update marker styles on hover/selection change
   useEffect(() => {

@@ -139,7 +139,6 @@ export default function SearchPage() {
             properties={filteredProperties}
             selectedProperty={selectedProperty}
             hoveredProperty={hoveredProperty}
-            onPropertySelect={handlePropertySelect}
             onPropertyHover={handlePropertyHover}
             center={mapCenter}
             zoom={mapZoom}
