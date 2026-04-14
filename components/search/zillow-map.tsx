@@ -43,14 +43,8 @@ interface ZillowMapProps {
   onPropertyHover: (propertyId: string | null) => void
 }
 
-const mapStyles = [
-  { id: "streets", label: "Streets" },
-  { id: "light", label: "Light" },
-  { id: "satellite", label: "Satellite" },
-]
-
 const DEFAULT_CENTER = { lat: 41.8781, lng: -87.6298 } // Chicago
-const DEFAULT_ZOOM = 12
+const DEFAULT_ZOOM = 13
 
 export function ZillowMap({
   properties,
@@ -59,46 +53,257 @@ export function ZillowMap({
   onPropertySelect,
   onPropertyHover,
 }: ZillowMapProps) {
+  const mapRef = useRef<HTMLDivElement>(null)
+  const leafletMapRef = useRef<L.Map | null>(null)
+  const markersRef = useRef<Map<string, L.Marker>>(new Map())
   const [mapStyleId, setMapStyleId] = useState("streets")
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [popupProperty, setPopupProperty] = useState<Property | null>(null)
-  const [zoom, setZoom] = useState(DEFAULT_ZOOM)
-  const [center, setCenter] = useState(DEFAULT_CENTER)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const [isMapReady, setIsMapReady] = useState(false)
+  const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM)
 
-  // Handle hoveredProperty from list
+  // Define L type for TypeScript
+  type L = typeof import("leaflet")
+  const LRef = useRef<L | null>(null)
+
+  // Initialize Leaflet map
   useEffect(() => {
-    if (hoveredProperty) {
-      const property = properties.find(p => p.id === hoveredProperty)
-      if (property) {
-        setPopupProperty(property)
-        setCenter({ lat: property.lat, lng: property.lng })
+    if (!mapRef.current || leafletMapRef.current) return
+
+    const initMap = async () => {
+      const L = await import("leaflet")
+      LRef.current = L
+
+      // Fix default marker icon issue
+      delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+        iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+        shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+      })
+
+      // Create map
+      const map = L.map(mapRef.current!, {
+        center: [DEFAULT_CENTER.lat, DEFAULT_CENTER.lng],
+        zoom: DEFAULT_ZOOM,
+        zoomControl: false,
+        attributionControl: true,
+      })
+
+      // Add tile layer - OpenStreetMap with street names
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+      }).addTo(map)
+
+      // Track zoom changes
+      map.on("zoomend", () => {
+        setCurrentZoom(map.getZoom())
+      })
+
+      leafletMapRef.current = map
+      setIsMapReady(true)
+    }
+
+    initMap()
+
+    return () => {
+      if (leafletMapRef.current) {
+        leafletMapRef.current.remove()
+        leafletMapRef.current = null
       }
+    }
+  }, [])
+
+  // Change map style
+  useEffect(() => {
+    if (!leafletMapRef.current || !LRef.current) return
+    const L = LRef.current
+    const map = leafletMapRef.current
+
+    // Remove existing tile layers
+    map.eachLayer((layer) => {
+      if (layer instanceof L.TileLayer) {
+        map.removeLayer(layer)
+      }
+    })
+
+    // Add new tile layer based on style
+    let tileUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    let attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+
+    if (mapStyleId === "light") {
+      tileUrl = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+      attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+    } else if (mapStyleId === "satellite") {
+      tileUrl = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+      attribution = '&copy; <a href="https://www.esri.com/">Esri</a>'
+    }
+
+    L.tileLayer(tileUrl, {
+      attribution,
+      maxZoom: 19,
+    }).addTo(map)
+  }, [mapStyleId])
+
+  // Create custom marker icon
+  const createMarkerIcon = useCallback((property: Property, isActive: boolean) => {
+    if (!LRef.current) return null
+    const L = LRef.current
+
+    const bgColor = property.status === "available" 
+      ? (isActive ? "#3b82f6" : "#22c55e")
+      : property.status === "waitlist-open"
+      ? (isActive ? "#3b82f6" : "#f59e0b")
+      : "#94a3b8"
+
+    const priceText = property.rent >= 1000 
+      ? `$${(property.rent / 1000).toFixed(1)}k` 
+      : `$${property.rent}`
+
+    const html = `
+      <div style="
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      ">
+        <div style="
+          background: ${bgColor};
+          color: white;
+          padding: 6px 12px;
+          border-radius: 20px;
+          font-weight: 600;
+          font-size: 13px;
+          font-family: system-ui, -apple-system, sans-serif;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+          white-space: nowrap;
+          ${isActive ? "transform: scale(1.1); box-shadow: 0 6px 20px rgba(0,0,0,0.35);" : ""}
+          transition: all 0.2s ease;
+        ">
+          ${priceText}
+        </div>
+        <div style="
+          width: 0;
+          height: 0;
+          border-left: 8px solid transparent;
+          border-right: 8px solid transparent;
+          border-top: 10px solid ${bgColor};
+          margin-top: -1px;
+        "></div>
+        ${property.status === "available" && !isActive ? `
+          <div style="
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 30px;
+            background: ${bgColor};
+            opacity: 0.3;
+            border-radius: 20px;
+            animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+          "></div>
+        ` : ""}
+      </div>
+    `
+
+    return L.divIcon({
+      html,
+      className: "custom-marker",
+      iconSize: [80, 50],
+      iconAnchor: [40, 50],
+    })
+  }, [])
+
+  // Add/update markers
+  useEffect(() => {
+    if (!leafletMapRef.current || !LRef.current || !isMapReady) return
+    const L = LRef.current
+    const map = leafletMapRef.current
+
+    // Clear existing markers
+    markersRef.current.forEach((marker) => {
+      map.removeLayer(marker)
+    })
+    markersRef.current.clear()
+
+    // Add markers for each property
+    properties.forEach((property) => {
+      const isActive = selectedProperty?.id === property.id || hoveredProperty === property.id
+      const icon = createMarkerIcon(property, isActive)
+      if (!icon) return
+
+      const marker = L.marker([property.lat, property.lng], { icon })
+        .addTo(map)
+        .on("click", () => {
+          onPropertySelect(property)
+          setPopupProperty(property)
+        })
+        .on("mouseover", () => {
+          onPropertyHover(property.id)
+        })
+        .on("mouseout", () => {
+          onPropertyHover(null)
+        })
+
+      markersRef.current.set(property.id, marker)
+    })
+  }, [properties, selectedProperty, hoveredProperty, isMapReady, createMarkerIcon, onPropertySelect, onPropertyHover])
+
+  // Update marker icons when hover/selection changes
+  useEffect(() => {
+    if (!LRef.current || !isMapReady) return
+
+    properties.forEach((property) => {
+      const marker = markersRef.current.get(property.id)
+      if (marker) {
+        const isActive = selectedProperty?.id === property.id || hoveredProperty === property.id
+        const icon = createMarkerIcon(property, isActive)
+        if (icon) {
+          marker.setIcon(icon)
+        }
+      }
+    })
+  }, [selectedProperty, hoveredProperty, properties, isMapReady, createMarkerIcon])
+
+  // Pan to hovered property
+  useEffect(() => {
+    if (!leafletMapRef.current || !hoveredProperty) return
+    const property = properties.find(p => p.id === hoveredProperty)
+    if (property) {
+      setPopupProperty(property)
+      // Smooth pan to property
+      leafletMapRef.current.panTo([property.lat, property.lng], { animate: true, duration: 0.5 })
     }
   }, [hoveredProperty, properties])
 
   // Zoom controls
   const handleZoomIn = useCallback(() => {
-    setZoom(z => Math.min(z + 1, 18))
+    if (leafletMapRef.current) {
+      leafletMapRef.current.zoomIn()
+    }
   }, [])
 
   const handleZoomOut = useCallback(() => {
-    setZoom(z => Math.max(z - 1, 10))
+    if (leafletMapRef.current) {
+      leafletMapRef.current.zoomOut()
+    }
   }, [])
 
   const handleReset = useCallback(() => {
-    setZoom(DEFAULT_ZOOM)
-    setCenter(DEFAULT_CENTER)
+    if (leafletMapRef.current) {
+      leafletMapRef.current.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], DEFAULT_ZOOM)
+    }
   }, [])
 
   const handleLocate = useCallback(() => {
-    if (navigator.geolocation) {
+    if (navigator.geolocation && leafletMapRef.current) {
       navigator.geolocation.getCurrentPosition((position) => {
-        setCenter({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        })
-        setZoom(15)
+        leafletMapRef.current?.setView(
+          [position.coords.latitude, position.coords.longitude],
+          15
+        )
       })
     }
   }, [])
@@ -117,115 +322,60 @@ export function ZillowMap({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [isFullscreen, handleZoomIn, handleZoomOut])
 
-  // Build OpenStreetMap iframe URL
-  const getMapUrl = () => {
-    const bbox = 0.05 / (zoom / 12)
-    const minLat = center.lat - bbox
-    const maxLat = center.lat + bbox
-    const minLng = center.lng - bbox * 1.5
-    const maxLng = center.lng + bbox * 1.5
-    
-    if (mapStyleId === "satellite") {
-      return `https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d${10000 / zoom}!2d${center.lng}!3d${center.lat}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e1!3m2!1sen!2sus!4v1234567890`
+  // Handle fullscreen resize
+  useEffect(() => {
+    if (leafletMapRef.current) {
+      setTimeout(() => {
+        leafletMapRef.current?.invalidateSize()
+      }, 100)
     }
-    
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${minLng}%2C${minLat}%2C${maxLng}%2C${maxLat}&layer=mapnik&marker=${center.lat}%2C${center.lng}`
-  }
+  }, [isFullscreen])
 
   return (
     <TooltipProvider>
       <div 
-        ref={containerRef}
         className={`relative h-full w-full ${isFullscreen ? "fixed inset-0 z-50 bg-background" : ""}`}
       >
-        {/* Map iframe */}
-        <iframe
-          src={getMapUrl()}
-          className="absolute inset-0 h-full w-full border-0"
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-          title="Map"
+        {/* Leaflet CSS */}
+        <link
+          rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+          integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw=="
+          crossOrigin="anonymous"
         />
 
-        {/* Property Markers Overlay */}
-        <div className="absolute inset-0 pointer-events-none">
-          {properties.map((property) => {
-            const isSelected = selectedProperty?.id === property.id
-            const isHovered = hoveredProperty === property.id
-            
-            // Calculate approximate position based on map center and zoom
-            const scale = Math.pow(2, zoom - 12)
-            const dx = (property.lng - center.lng) * 500 * scale
-            const dy = -(property.lat - center.lat) * 700 * scale
-            
-            // Check if marker is within visible bounds
-            const isVisible = Math.abs(dx) < 400 && Math.abs(dy) < 300
+        {/* Custom marker animation */}
+        <style>{`
+          @keyframes ping {
+            0% { transform: translateX(-50%) scale(1); opacity: 0.3; }
+            75%, 100% { transform: translateX(-50%) scale(2); opacity: 0; }
+          }
+          .custom-marker {
+            background: transparent !important;
+            border: none !important;
+          }
+          .leaflet-control-attribution {
+            font-size: 10px !important;
+            background: rgba(255,255,255,0.8) !important;
+          }
+        `}</style>
 
-            if (!isVisible) return null
+        {/* Map Container */}
+        <div 
+          ref={mapRef} 
+          className="absolute inset-0 z-0"
+          style={{ background: "#e5e7eb" }}
+        />
 
-            return (
-              <button
-                key={property.id}
-                className={`absolute pointer-events-auto transform -translate-x-1/2 -translate-y-full transition-all duration-200 ${
-                  isSelected || isHovered ? "z-30 scale-110" : "z-10 hover:z-20 hover:scale-105"
-                }`}
-                style={{ 
-                  left: `calc(50% + ${dx}px)`,
-                  top: `calc(50% + ${dy}px)`,
-                }}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onPropertySelect(property)
-                  setPopupProperty(property)
-                }}
-                onMouseEnter={() => {
-                  onPropertyHover(property.id)
-                  setPopupProperty(property)
-                }}
-                onMouseLeave={() => {
-                  onPropertyHover(null)
-                  if (!isSelected) setPopupProperty(null)
-                }}
-              >
-                <div className="relative">
-                  <div 
-                    className={`flex items-center rounded-full px-3 py-1.5 font-semibold text-sm shadow-lg transition-all ${
-                      property.status === "available"
-                        ? isSelected || isHovered
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-emerald-500 text-white"
-                        : property.status === "waitlist-open"
-                        ? isSelected || isHovered
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-amber-500 text-white"
-                        : "bg-slate-400 text-white"
-                    } ${isSelected ? "ring-2 ring-white ring-offset-2 ring-offset-background" : ""}`}
-                  >
-                    ${property.rent >= 1000 ? `${(property.rent / 1000).toFixed(1)}k` : property.rent}
-                  </div>
-                  
-                  <div 
-                    className={`absolute left-1/2 top-full -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-transparent transition-all ${
-                      property.status === "available"
-                        ? isSelected || isHovered
-                          ? "border-t-primary"
-                          : "border-t-emerald-500"
-                        : property.status === "waitlist-open"
-                        ? isSelected || isHovered
-                          ? "border-t-primary"
-                          : "border-t-amber-500"
-                        : "border-t-slate-400"
-                    }`}
-                  />
-                  
-                  {property.status === "available" && !isSelected && !isHovered && (
-                    <div className="absolute -inset-2 rounded-full bg-emerald-400/30 animate-ping" />
-                  )}
-                </div>
-              </button>
-            )
-          })}
-        </div>
+        {/* Loading State */}
+        {!isMapReady && (
+          <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
+            <div className="flex flex-col items-center gap-2">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+              <span className="text-sm text-muted-foreground">Loading map...</span>
+            </div>
+          </div>
+        )}
 
         {/* Property Popup */}
         {popupProperty && (
@@ -246,7 +396,6 @@ export function ZillowMap({
                   size="icon" 
                   className="h-10 w-10 rounded-none border-b border-border hover:bg-muted"
                   onClick={handleZoomIn}
-                  disabled={zoom >= 18}
                 >
                   <ZoomIn className="h-4 w-4" />
                 </Button>
@@ -255,7 +404,7 @@ export function ZillowMap({
             </Tooltip>
             
             <div className="flex h-8 items-center justify-center bg-muted/50 text-xs font-medium text-muted-foreground">
-              {zoom}x
+              {currentZoom}x
             </div>
             
             <Tooltip>
@@ -265,7 +414,6 @@ export function ZillowMap({
                   size="icon" 
                   className="h-10 w-10 rounded-none hover:bg-muted"
                   onClick={handleZoomOut}
-                  disabled={zoom <= 10}
                 >
                   <ZoomOut className="h-4 w-4" />
                 </Button>
@@ -317,15 +465,24 @@ export function ZillowMap({
               <TooltipContent side="left">Map style</TooltipContent>
             </Tooltip>
             <DropdownMenuContent align="end" className="w-32">
-              {mapStyles.map((style) => (
-                <DropdownMenuItem
-                  key={style.id}
-                  onClick={() => setMapStyleId(style.id)}
-                  className={mapStyleId === style.id ? "bg-accent" : ""}
-                >
-                  {style.label}
-                </DropdownMenuItem>
-              ))}
+              <DropdownMenuItem
+                onClick={() => setMapStyleId("streets")}
+                className={mapStyleId === "streets" ? "bg-accent" : ""}
+              >
+                Streets
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setMapStyleId("light")}
+                className={mapStyleId === "light" ? "bg-accent" : ""}
+              >
+                Light
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setMapStyleId("satellite")}
+                className={mapStyleId === "satellite" ? "bg-accent" : ""}
+              >
+                Satellite
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
