@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Image from "next/image"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -61,8 +61,13 @@ interface PropertyCardProps {
 }
 
 function PropertyCard({ property, isSelected, isHovered, onHover }: PropertyCardProps) {
+  const router = useRouter()
   const [currentImage, setCurrentImage] = useState(0)
   const [isFavorite, setIsFavorite] = useState(false)
+
+  const handleCardClick = () => {
+    router.push(`/property/${property.id}`)
+  }
 
   const nextImage = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -80,18 +85,18 @@ function PropertyCard({ property, isSelected, isHovered, onHover }: PropertyCard
   }
 
   return (
-    <Link href={`/property/${property.id}`}>
-      <Card
-        className={`group cursor-pointer overflow-hidden transition-all duration-200 ${
-          isSelected
-            ? "ring-2 ring-primary shadow-lg"
-            : isHovered
-            ? "ring-1 ring-primary/50 shadow-md"
-            : "hover:shadow-md"
-        }`}
-        onMouseEnter={() => onHover(true)}
-        onMouseLeave={() => onHover(false)}
-      >
+    <Card
+      className={`group cursor-pointer overflow-hidden transition-all duration-200 ${
+        isSelected
+          ? "ring-2 ring-primary shadow-lg"
+          : isHovered
+          ? "ring-1 ring-primary/50 shadow-md"
+          : "hover:shadow-md"
+      }`}
+      onClick={handleCardClick}
+      onMouseEnter={() => onHover(true)}
+      onMouseLeave={() => onHover(false)}
+    >
       {/* Image Carousel */}
       <div className="relative aspect-[16/10] overflow-hidden">
         <Image
@@ -248,8 +253,7 @@ function PropertyCard({ property, isSelected, isHovered, onHover }: PropertyCard
           </p>
         )}
       </div>
-      </Card>
-    </Link>
+    </Card>
   )
 }
 
