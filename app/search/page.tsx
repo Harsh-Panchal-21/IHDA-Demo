@@ -538,6 +538,11 @@ export default function SearchPage() {
   const handleLocationSearch = useCallback((location: string) => {
     setSearchLocation(location)
     
+    // Close any open drawer and reset selection when changing location
+    setDrawerOpen(false)
+    setSelectedProperty(null)
+    setHoveredProperty(null)
+    
     // Extract city name from search query
     const cityName = location.toLowerCase().split(",")[0].trim()
     
