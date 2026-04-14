@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -47,6 +47,11 @@ interface PropertyDrawerProps {
 export function PropertyDrawer({ property, open, onClose }: PropertyDrawerProps) {
   const [currentImage, setCurrentImage] = useState(0)
   const [isFavorite, setIsFavorite] = useState(false)
+
+  // Reset image index when property changes
+  useEffect(() => {
+    setCurrentImage(0)
+  }, [property?.id])
 
   if (!property) return null
 

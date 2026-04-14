@@ -142,11 +142,21 @@ export function ZillowMap({
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainerRef.current || mapInstanceRef.current) return
+    if (!mapContainerRef.current) return
+    
+    // If map already exists, don't reinitialize
+    if (mapInstanceRef.current) return
 
     const initializeMap = async () => {
       const L = await import("leaflet")
       leafletRef.current = L
+
+      // Clean up any existing map instance on the container
+      const container = mapContainerRef.current
+      if (container && (container as HTMLElement & { _leaflet_id?: number })._leaflet_id) {
+        // Container already has a map, skip initialization
+        return
+      }
 
       // Create map instance
       const map = L.map(mapContainerRef.current!, {
