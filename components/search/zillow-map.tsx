@@ -74,6 +74,8 @@ export function ZillowMap({
   const [popupProperty, setPopupProperty] = useState<Property | null>(null)
   const [isMapReady, setIsMapReady] = useState(false)
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM)
+  const isDraggingRef = useRef(false)
+  const dragStartTimeRef = useRef(0)
 
   // Create custom price marker icon
   const createPriceIcon = useCallback((property: Property, isActive: boolean) => {
@@ -164,9 +166,28 @@ export function ZillowMap({
         setCurrentZoom(map.getZoom())
       })
 
-      // Close popup on map click
+      // Track dragging to prevent click after drag
+      map.on("dragstart", () => {
+        isDraggingRef.current = true
+        dragStartTimeRef.current = Date.now()
+      })
+
+      map.on("dragend", () => {
+        // Keep dragging true for a short time to prevent click
+        setTimeout(() => {
+          isDraggingRef.current = false
+        }, 100)
+      })
+
+      map.on("movestart", () => {
+        dragStartTimeRef.current = Date.now()
+      })
+
+      // Close popup on map click (but not after drag)
       map.on("click", () => {
-        setPopupProperty(null)
+        if (!isDraggingRef.current && Date.now() - dragStartTimeRef.current > 200) {
+          setPopupProperty(null)
+        }
       })
 
       mapInstanceRef.current = map
@@ -230,12 +251,18 @@ export function ZillowMap({
       })
         .addTo(map)
         .on("click", (e) => {
+          // Prevent click if we just finished dragging
+          if (isDraggingRef.current || Date.now() - dragStartTimeRef.current < 200) {
+            return
+          }
           L.DomEvent.stopPropagation(e)
           onPropertySelect(property)
           setPopupProperty(property)
         })
         .on("mouseover", () => {
-          onPropertyHover(property.id)
+          if (!isDraggingRef.current) {
+            onPropertyHover(property.id)
+          }
         })
         .on("mouseout", () => {
           onPropertyHover(null)
@@ -263,15 +290,18 @@ export function ZillowMap({
     })
   }, [selectedProperty, hoveredProperty, properties, isMapReady, createPriceIcon])
 
-  // Pan to hovered property
+  // Pan to hovered property (only when hovering from property list, not map)
   useEffect(() => {
     const map = mapInstanceRef.current
-    if (!map || !hoveredProperty) return
+    if (!map || !hoveredProperty || isDraggingRef.current) return
 
     const property = properties.find(p => p.id === hoveredProperty)
     if (property) {
-      setPopupProperty(property)
-      map.panTo([property.lat, property.lng], { animate: true, duration: 0.3 })
+      // Only show popup and pan if not dragging
+      if (!isDraggingRef.current) {
+        setPopupProperty(property)
+        map.panTo([property.lat, property.lng], { animate: true, duration: 0.3 })
+      }
     }
   }, [hoveredProperty, properties])
 
