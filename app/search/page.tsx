@@ -6,7 +6,6 @@ import { SupportBanner } from "@/components/support-banner"
 import { ZillowMap } from "@/components/search/zillow-map"
 import { PropertyList } from "@/components/search/property-list"
 import { SearchHeader } from "@/components/search/search-header"
-import { PropertyDrawer } from "@/components/search/property-drawer"
 import { properties, type Property } from "@/lib/properties-data"
 
 export type { Property }
@@ -32,7 +31,6 @@ const CITY_COORDS: Record<string, { lat: number; lng: number; zoom: number }> = 
 export default function SearchPage() {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
   const [hoveredProperty, setHoveredProperty] = useState<string | null>(null)
-  const [drawerOpen, setDrawerOpen] = useState(false)
   const [searchLocation, setSearchLocation] = useState("Chicago, IL")
   const [mapCenter, setMapCenter] = useState({ lat: 41.8781, lng: -87.6298 })
   const [mapZoom, setMapZoom] = useState(12)
@@ -45,25 +43,14 @@ export default function SearchPage() {
     status: "all",
   })
 
-  const handlePropertySelect = useCallback((property: Property) => {
-    setSelectedProperty(property)
-    setDrawerOpen(true)
-  }, [])
-
   const handlePropertyHover = useCallback((propertyId: string | null) => {
     setHoveredProperty(propertyId)
-  }, [])
-
-  const handleCloseDrawer = useCallback(() => {
-    setDrawerOpen(false)
-    setTimeout(() => setSelectedProperty(null), 300)
   }, [])
 
   const handleLocationSearch = useCallback((location: string) => {
     setSearchLocation(location)
     
-    // Close any open drawer and reset selection when changing location
-    setDrawerOpen(false)
+    // Reset selection when changing location
     setSelectedProperty(null)
     setHoveredProperty(null)
     
@@ -142,7 +129,6 @@ export default function SearchPage() {
             properties={filteredProperties}
             selectedProperty={selectedProperty}
             hoveredProperty={hoveredProperty}
-            onPropertySelect={handlePropertySelect}
             onPropertyHover={handlePropertyHover}
           />
         </div>
@@ -160,13 +146,6 @@ export default function SearchPage() {
           />
         </div>
       </div>
-
-      {/* Property Detail Drawer */}
-      <PropertyDrawer
-        property={selectedProperty}
-        open={drawerOpen}
-        onClose={handleCloseDrawer}
-      />
     </div>
   )
 }
