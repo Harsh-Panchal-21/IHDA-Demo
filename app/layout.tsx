@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   description: 'Find affordable housing opportunities across Illinois. Search listings, apply to waitlists, and access housing resources through the Illinois Housing Development Authority.',
   generator: 'King Technology',
   keywords: ['affordable housing', 'Illinois', 'IHDA', 'housing assistance', 'waitlist', 'rental assistance'],
-  
+}
 
 export default function RootLayout({
   children,
