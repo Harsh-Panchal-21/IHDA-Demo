@@ -75,8 +75,8 @@ export function ZillowMap({
   const [isMapReady, setIsMapReady] = useState(false)
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM)
   const isDraggingRef = useRef(false)
-  const mouseDownPosRef = useRef<{ x: number; y: number } | null>(null)
   const hasDraggedRef = useRef(false)
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Create custom price marker icon
   const createPriceIcon = useCallback((property: Property, isActive: boolean) => {
@@ -167,45 +167,38 @@ export function ZillowMap({
         setCurrentZoom(map.getZoom())
       })
 
-      // Track mouse down/up to detect dragging vs clicking
-      const container = map.getContainer()
-      
-      container.addEventListener("mousedown", (e) => {
-        mouseDownPosRef.current = { x: e.clientX, y: e.clientY }
-        hasDraggedRef.current = false
-        isDraggingRef.current = false
+      // Track dragging using Leaflet events
+      map.on("dragstart", () => {
+        isDraggingRef.current = true
+        hasDraggedRef.current = true
       })
 
-      container.addEventListener("mousemove", (e) => {
-        if (mouseDownPosRef.current) {
-          const dx = e.clientX - mouseDownPosRef.current.x
-          const dy = e.clientY - mouseDownPosRef.current.y
-          const distance = Math.sqrt(dx * dx + dy * dy)
-          // If moved more than 5 pixels, consider it a drag
-          if (distance > 5) {
-            hasDraggedRef.current = true
-            isDraggingRef.current = true
-          }
+      map.on("dragend", () => {
+        // Keep hasDragged true for a moment to prevent click on markers
+        if (clickTimeoutRef.current) {
+          clearTimeout(clickTimeoutRef.current)
         }
+        clickTimeoutRef.current = setTimeout(() => {
+          isDraggingRef.current = false
+          hasDraggedRef.current = false
+        }, 300)
       })
 
-      container.addEventListener("mouseup", () => {
-        mouseDownPosRef.current = null
-        // Keep drag state for a moment to prevent click handlers
-        setTimeout(() => {
+      map.on("movestart", () => {
+        isDraggingRef.current = true
+      })
+
+      map.on("moveend", () => {
+        if (!hasDraggedRef.current) {
           isDraggingRef.current = false
-        }, 50)
+        }
       })
 
       // Close popup on map click (but not after drag)
       map.on("click", () => {
-        if (!hasDraggedRef.current) {
+        if (!hasDraggedRef.current && !isDraggingRef.current) {
           setPopupProperty(null)
         }
-        // Reset drag state after click is processed
-        setTimeout(() => {
-          hasDraggedRef.current = false
-        }, 10)
       })
 
       mapInstanceRef.current = map
@@ -263,28 +256,52 @@ export function ZillowMap({
       const icon = createPriceIcon(property, isActive)
       if (!icon) return
 
+      const markerElement = document.createElement("div")
+      let markerMouseDownPos: { x: number; y: number } | null = null
+      let markerHasMoved = false
+
       const marker = L.marker([property.lat, property.lng], { 
         icon,
         zIndexOffset: isActive ? 1000 : 0
       })
         .addTo(map)
-        .on("click", (e) => {
-          // Prevent click if we just finished dragging
-          if (hasDraggedRef.current || isDraggingRef.current) {
-            return
+
+      // Use DOM events on marker element for precise click detection
+      marker.getElement()?.addEventListener("mousedown", (e) => {
+        markerMouseDownPos = { x: e.clientX, y: e.clientY }
+        markerHasMoved = false
+      })
+
+      marker.getElement()?.addEventListener("mousemove", (e) => {
+        if (markerMouseDownPos) {
+          const dx = Math.abs(e.clientX - markerMouseDownPos.x)
+          const dy = Math.abs(e.clientY - markerMouseDownPos.y)
+          if (dx > 3 || dy > 3) {
+            markerHasMoved = true
           }
-          L.DomEvent.stopPropagation(e)
+        }
+      })
+
+      marker.getElement()?.addEventListener("mouseup", (e) => {
+        // Only trigger click if mouse didn't move significantly
+        if (!markerHasMoved && markerMouseDownPos) {
+          e.stopPropagation()
           onPropertySelect(property)
           setPopupProperty(property)
-        })
-        .on("mouseover", () => {
-          if (!isDraggingRef.current && !hasDraggedRef.current) {
-            onPropertyHover(property.id)
-          }
-        })
-        .on("mouseout", () => {
-          onPropertyHover(null)
-        })
+        }
+        markerMouseDownPos = null
+        markerHasMoved = false
+      })
+
+      marker.on("mouseover", () => {
+        if (!isDraggingRef.current) {
+          onPropertyHover(property.id)
+        }
+      })
+      
+      marker.on("mouseout", () => {
+        onPropertyHover(null)
+      })
 
       markersRef.current.set(property.id, marker)
     })
@@ -318,8 +335,8 @@ export function ZillowMap({
 
     const property = properties.find(p => p.id === hoveredProperty)
     if (property) {
+      // Only show popup, don't pan automatically to avoid jarring UX
       setPopupProperty(property)
-      map.panTo([property.lat, property.lng], { animate: true, duration: 0.3 })
     }
   }, [hoveredProperty, properties])
 
