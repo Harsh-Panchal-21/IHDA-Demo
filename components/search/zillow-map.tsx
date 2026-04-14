@@ -36,6 +36,8 @@ interface ZillowMapProps {
   hoveredProperty: string | null
   onPropertySelect: (property: Property) => void
   onPropertyHover: (propertyId: string | null) => void
+  center?: { lat: number; lng: number }
+  zoom?: number
 }
 
 const DEFAULT_CENTER = { lat: 41.8781, lng: -87.6298 }
@@ -62,6 +64,8 @@ export function ZillowMap({
   hoveredProperty,
   onPropertySelect,
   onPropertyHover,
+  center = DEFAULT_CENTER,
+  zoom = DEFAULT_ZOOM,
 }: ZillowMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
@@ -340,6 +344,14 @@ export function ZillowMap({
     }
   }, [hoveredProperty, properties])
 
+  // Handle center/zoom changes from props
+  useEffect(() => {
+    const map = mapInstanceRef.current
+    if (map && isMapReady) {
+      map.setView([center.lat, center.lng], zoom, { animate: true })
+    }
+  }, [center, zoom, isMapReady])
+
   // Handle fullscreen resize
   useEffect(() => {
     const map = mapInstanceRef.current
@@ -358,8 +370,8 @@ export function ZillowMap({
   }, [])
 
   const handleReset = useCallback(() => {
-    mapInstanceRef.current?.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], DEFAULT_ZOOM)
-  }, [])
+    mapInstanceRef.current?.setView([center.lat, center.lng], zoom)
+  }, [center, zoom])
 
   const handleLocate = useCallback(() => {
     if (navigator.geolocation) {

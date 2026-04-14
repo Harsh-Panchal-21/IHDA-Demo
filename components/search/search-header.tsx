@@ -44,6 +44,8 @@ interface SearchHeaderProps {
   filters: Filters
   onFiltersChange: (filters: Filters) => void
   propertyCount: number
+  searchLocation: string
+  onLocationSearch: (location: string) => void
 }
 
 const programs = [
@@ -63,9 +65,9 @@ const accessibilityOptions = [
   "mobilityFeatures",
 ]
 
-export function SearchHeader({ filters, onFiltersChange, propertyCount }: SearchHeaderProps) {
+export function SearchHeader({ filters, onFiltersChange, propertyCount, searchLocation, onLocationSearch }: SearchHeaderProps) {
   const { t } = useLanguage()
-  const [searchQuery, setSearchQuery] = useState("Chicago, IL")
+  const [searchQuery, setSearchQuery] = useState(searchLocation)
   const [priceRange, setPriceRange] = useState([filters.minRent, filters.maxRent])
   const [selectedPrograms, setSelectedPrograms] = useState<string[]>(filters.programs)
   const [selectedAccessibility, setSelectedAccessibility] = useState<string[]>([])
@@ -82,15 +84,22 @@ export function SearchHeader({ filters, onFiltersChange, propertyCount }: Search
     <div className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-40">
       <div className="flex items-center gap-3 p-3">
         {/* Location Search */}
-        <div className="relative flex-1 max-w-md">
+        <form 
+          className="relative flex-1 max-w-md"
+          onSubmit={(e) => {
+            e.preventDefault()
+            onLocationSearch(searchQuery)
+          }}
+        >
           <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onBlur={() => onLocationSearch(searchQuery)}
             placeholder={t("searchPlaceholder")}
             className="pl-9 pr-4 h-10 bg-background"
           />
-        </div>
+        </form>
 
         {/* Quick Filters */}
         <div className="hidden md:flex items-center gap-2">
