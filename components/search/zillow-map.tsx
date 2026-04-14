@@ -75,7 +75,8 @@ export function ZillowMap({
   const [isMapReady, setIsMapReady] = useState(false)
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM)
   const isDraggingRef = useRef(false)
-  const dragStartTimeRef = useRef(0)
+  const mouseDownPosRef = useRef<{ x: number; y: number } | null>(null)
+  const hasDraggedRef = useRef(false)
 
   // Create custom price marker icon
   const createPriceIcon = useCallback((property: Property, isActive: boolean) => {
@@ -166,28 +167,45 @@ export function ZillowMap({
         setCurrentZoom(map.getZoom())
       })
 
-      // Track dragging to prevent click after drag
-      map.on("dragstart", () => {
-        isDraggingRef.current = true
-        dragStartTimeRef.current = Date.now()
+      // Track mouse down/up to detect dragging vs clicking
+      const container = map.getContainer()
+      
+      container.addEventListener("mousedown", (e) => {
+        mouseDownPosRef.current = { x: e.clientX, y: e.clientY }
+        hasDraggedRef.current = false
+        isDraggingRef.current = false
       })
 
-      map.on("dragend", () => {
-        // Keep dragging true for a short time to prevent click
+      container.addEventListener("mousemove", (e) => {
+        if (mouseDownPosRef.current) {
+          const dx = e.clientX - mouseDownPosRef.current.x
+          const dy = e.clientY - mouseDownPosRef.current.y
+          const distance = Math.sqrt(dx * dx + dy * dy)
+          // If moved more than 5 pixels, consider it a drag
+          if (distance > 5) {
+            hasDraggedRef.current = true
+            isDraggingRef.current = true
+          }
+        }
+      })
+
+      container.addEventListener("mouseup", () => {
+        mouseDownPosRef.current = null
+        // Keep drag state for a moment to prevent click handlers
         setTimeout(() => {
           isDraggingRef.current = false
-        }, 100)
-      })
-
-      map.on("movestart", () => {
-        dragStartTimeRef.current = Date.now()
+        }, 50)
       })
 
       // Close popup on map click (but not after drag)
       map.on("click", () => {
-        if (!isDraggingRef.current && Date.now() - dragStartTimeRef.current > 200) {
+        if (!hasDraggedRef.current) {
           setPopupProperty(null)
         }
+        // Reset drag state after click is processed
+        setTimeout(() => {
+          hasDraggedRef.current = false
+        }, 10)
       })
 
       mapInstanceRef.current = map
@@ -252,7 +270,7 @@ export function ZillowMap({
         .addTo(map)
         .on("click", (e) => {
           // Prevent click if we just finished dragging
-          if (isDraggingRef.current || Date.now() - dragStartTimeRef.current < 200) {
+          if (hasDraggedRef.current || isDraggingRef.current) {
             return
           }
           L.DomEvent.stopPropagation(e)
@@ -260,7 +278,7 @@ export function ZillowMap({
           setPopupProperty(property)
         })
         .on("mouseover", () => {
-          if (!isDraggingRef.current) {
+          if (!isDraggingRef.current && !hasDraggedRef.current) {
             onPropertyHover(property.id)
           }
         })
@@ -293,15 +311,15 @@ export function ZillowMap({
   // Pan to hovered property (only when hovering from property list, not map)
   useEffect(() => {
     const map = mapInstanceRef.current
-    if (!map || !hoveredProperty || isDraggingRef.current) return
+    if (!map || !hoveredProperty) return
+
+    // Don't pan if user is dragging
+    if (isDraggingRef.current || hasDraggedRef.current) return
 
     const property = properties.find(p => p.id === hoveredProperty)
     if (property) {
-      // Only show popup and pan if not dragging
-      if (!isDraggingRef.current) {
-        setPopupProperty(property)
-        map.panTo([property.lat, property.lng], { animate: true, duration: 0.3 })
-      }
+      setPopupProperty(property)
+      map.panTo([property.lat, property.lng], { animate: true, duration: 0.3 })
     }
   }, [hoveredProperty, properties])
 
