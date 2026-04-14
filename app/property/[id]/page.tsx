@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { PropertyGallery } from "@/components/property/property-gallery"
@@ -6,78 +7,78 @@ import { PropertySidebar } from "@/components/property/property-sidebar"
 import { PropertyAmenities } from "@/components/property/property-amenities"
 import { PropertyLocation } from "@/components/property/property-location"
 import { SimilarProperties } from "@/components/property/similar-properties"
+import { getPropertyById, type Property } from "@/lib/properties-data"
 
-// Mock property data
-const getProperty = async (id: string) => {
-  // In production, this would fetch from database
+// Transform the property data for the detail page
+function transformPropertyForDetail(property: Property) {
   return {
-    id,
-    title: "Sunny 2BR Apartment in Lincoln Park",
-    address: "2450 N Lincoln Ave, Chicago, IL 60614",
-    rent: 1200,
-    securityDeposit: 1200,
-    bedrooms: 2,
-    bathrooms: 1,
-    sqft: 950,
-    yearBuilt: 1985,
-    status: "available",
-    waitlistPosition: null,
-    waitlistCount: 0,
-    programs: ["Section 8", "LIHTC"],
-    accessibility: ["Elevator", "Wide Doorways"],
+    id: property.id,
+    title: property.title,
+    address: `${property.address}, ${property.city}, ${property.state} ${property.zip}`,
+    rent: property.rent,
+    securityDeposit: property.rent,
+    bedrooms: property.bedrooms,
+    bathrooms: property.bathrooms,
+    sqft: property.sqft,
+    yearBuilt: property.yearBuilt,
+    status: property.status,
+    waitlistPosition: property.status === "waitlist-open" ? Math.floor(Math.random() * 50) + 1 : null,
+    waitlistCount: property.status === "waitlist-open" ? Math.floor(Math.random() * 100) + 50 : 0,
+    programs: property.programs,
+    accessibility: property.accessibility,
     amenities: [
-      "In-Unit Laundry",
+      property.laundry !== "None" ? `${property.laundry} Laundry` : null,
+      property.parking !== "None" ? `${property.parking} Parking` : null,
+      property.pets ? "Pet Friendly" : null,
       "Central Air",
-      "Hardwood Floors",
       "Updated Kitchen",
-      "Off-Street Parking",
-      "Storage Unit",
-      "Pet Friendly",
       "Near Public Transit",
-    ],
-    description: `This beautifully updated 2-bedroom apartment is located in the heart of Lincoln Park, one of Chicago's most desirable neighborhoods. The unit features stunning hardwood floors throughout, a modern kitchen with stainless steel appliances, and large windows that flood the space with natural light.
-
-The apartment includes in-unit laundry, central air conditioning, and access to off-street parking. Located just steps from public transit, shops, restaurants, and Lincoln Park itself, this is an ideal home for anyone looking for city living with a neighborhood feel.
-
-This property accepts Section 8 vouchers and is part of the Low Income Housing Tax Credit (LIHTC) program.`,
-    images: [
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&h=600&fit=crop",
-    ],
+    ].filter(Boolean) as string[],
+    description: property.description || `This ${property.bedrooms === 0 ? "studio" : `${property.bedrooms}-bedroom`} apartment is located in ${property.city}, ${property.state}. The property features ${property.sqft} square feet of living space with ${property.bathrooms} bathroom(s). ${property.laundry} laundry and ${property.parking.toLowerCase()} parking available.`,
+    images: property.images,
     landlord: {
-      name: "Lincoln Park Properties LLC",
-      phone: "(312) 555-0123",
-      email: "contact@lpproperties.com",
+      name: `${property.city} Housing Authority`,
+      phone: "(555) 555-0123",
+      email: `contact@${property.city.toLowerCase().replace(/\s/g, "")}housing.com`,
       responseTime: "Usually responds within 24 hours",
     },
     incomeRequirements: {
-      maxIncome: 72000,
-      minIncome: 28800,
+      maxIncome: property.rent * 12 * 5,
+      minIncome: property.rent * 12 * 2,
       amiPercentage: 60,
     },
     coordinates: {
-      lat: 41.9216,
-      lng: -87.6513,
+      lat: property.lat,
+      lng: property.lng,
     },
   }
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const property = await getProperty(id)
+  const property = getPropertyById(id)
+  
+  if (!property) {
+    return {
+      title: "Property Not Found | IHDA Housing Locator",
+    }
+  }
   
   return {
     title: `${property.title} | IHDA Housing Locator`,
-    description: `${property.bedrooms} bedroom, ${property.bathrooms} bathroom apartment for $${property.rent}/month in ${property.address}`,
+    description: `${property.bedrooms === 0 ? "Studio" : `${property.bedrooms} bedroom`}, ${property.bathrooms} bathroom apartment for $${property.rent}/month in ${property.city}, ${property.state}`,
   }
 }
 
 export default async function PropertyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const property = await getProperty(id)
+  const baseProperty = getPropertyById(id)
+
+  if (!baseProperty) {
+    notFound()
+  }
+
+  const property = transformPropertyForDetail(baseProperty)
 
   return (
     <div className="flex min-h-screen flex-col">
