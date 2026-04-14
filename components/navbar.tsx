@@ -138,6 +138,15 @@ export function Navbar() {
                     </div>
                   </Link>
                 ))}
+                <div className="mt-2 border-t pt-2">
+                  <Link
+                    href="/programs"
+                    className="flex items-center gap-2 rounded-lg p-3 text-sm font-medium text-primary transition-colors hover:bg-accent"
+                  >
+                    View All Programs
+                    <ChevronDown className="h-3.5 w-3.5 -rotate-90" />
+                  </Link>
+                </div>
               </div>
             </PopoverContent>
           </Popover>
