@@ -381,6 +381,214 @@ export function ZillowMap({
 
           {/* Downtown indicator */}
           <div className="absolute left-[40%] top-[42%] h-[16%] w-[14%] rounded-lg border border-dashed border-muted-foreground/10 bg-muted/5" />
+
+          {/* Street Names - visible at higher zoom levels */}
+          {zoom >= 11 && (
+            <div className="absolute inset-0 pointer-events-none">
+              {/* Horizontal Streets */}
+              <div 
+                className={`absolute left-[5%] top-[29%] px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase ${
+                  mapStyle === "satellite" ? "text-white/70" : "text-muted-foreground/80"
+                }`}
+                style={{ fontSize: `${Math.max(9, zoom - 2)}px` }}
+              >
+                W Madison St
+              </div>
+              <div 
+                className={`absolute left-[5%] top-[49%] px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase ${
+                  mapStyle === "satellite" ? "text-white/70" : "text-muted-foreground/80"
+                }`}
+                style={{ fontSize: `${Math.max(9, zoom - 2)}px` }}
+              >
+                W Congress Pkwy
+              </div>
+              <div 
+                className={`absolute left-[5%] top-[69%] px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase ${
+                  mapStyle === "satellite" ? "text-white/70" : "text-muted-foreground/80"
+                }`}
+                style={{ fontSize: `${Math.max(9, zoom - 2)}px` }}
+              >
+                W Roosevelt Rd
+              </div>
+
+              {/* Vertical Streets */}
+              <div 
+                className={`absolute left-[28%] top-[8%] px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase origin-left ${
+                  mapStyle === "satellite" ? "text-white/70" : "text-muted-foreground/80"
+                }`}
+                style={{ 
+                  fontSize: `${Math.max(9, zoom - 2)}px`,
+                  transform: 'rotate(90deg)',
+                  transformOrigin: 'left center'
+                }}
+              >
+                S Halsted St
+              </div>
+              <div 
+                className={`absolute left-[48%] top-[8%] px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase origin-left ${
+                  mapStyle === "satellite" ? "text-white/70" : "text-muted-foreground/80"
+                }`}
+                style={{ 
+                  fontSize: `${Math.max(9, zoom - 2)}px`,
+                  transform: 'rotate(90deg)',
+                  transformOrigin: 'left center'
+                }}
+              >
+                S State St
+              </div>
+
+              {/* Lake Shore Drive - curved label */}
+              <div 
+                className={`absolute right-[32%] top-[15%] px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase ${
+                  mapStyle === "satellite" ? "text-cyan-300/80" : "text-primary/70"
+                }`}
+                style={{ 
+                  fontSize: `${Math.max(10, zoom - 1)}px`,
+                  transform: 'rotate(-8deg)'
+                }}
+              >
+                N Lake Shore Dr
+              </div>
+
+              {/* More detailed streets at higher zoom */}
+              {zoom >= 13 && (
+                <>
+                  <div 
+                    className={`absolute left-[15%] top-[38%] px-1 py-0.5 text-[9px] font-medium tracking-wide ${
+                      mapStyle === "satellite" ? "text-white/60" : "text-muted-foreground/60"
+                    }`}
+                  >
+                    W Adams St
+                  </div>
+                  <div 
+                    className={`absolute left-[15%] top-[58%] px-1 py-0.5 text-[9px] font-medium tracking-wide ${
+                      mapStyle === "satellite" ? "text-white/60" : "text-muted-foreground/60"
+                    }`}
+                  >
+                    W Harrison St
+                  </div>
+                  <div 
+                    className={`absolute left-[38%] top-[8%] px-1 py-0.5 text-[9px] font-medium tracking-wide origin-left ${
+                      mapStyle === "satellite" ? "text-white/60" : "text-muted-foreground/60"
+                    }`}
+                    style={{ transform: 'rotate(90deg)', transformOrigin: 'left center' }}
+                  >
+                    S Clark St
+                  </div>
+                  <div 
+                    className={`absolute left-[55%] top-[8%] px-1 py-0.5 text-[9px] font-medium tracking-wide origin-left ${
+                      mapStyle === "satellite" ? "text-white/60" : "text-muted-foreground/60"
+                    }`}
+                    style={{ transform: 'rotate(90deg)', transformOrigin: 'left center' }}
+                  >
+                    S Michigan Ave
+                  </div>
+                </>
+              )}
+
+              {/* Even more detail at highest zoom */}
+              {zoom >= 15 && (
+                <>
+                  <div 
+                    className={`absolute left-[22%] top-[24%] px-1 py-0.5 text-[8px] font-medium ${
+                      mapStyle === "satellite" ? "text-white/50" : "text-muted-foreground/50"
+                    }`}
+                  >
+                    W Washington St
+                  </div>
+                  <div 
+                    className={`absolute left-[22%] top-[44%] px-1 py-0.5 text-[8px] font-medium ${
+                      mapStyle === "satellite" ? "text-white/50" : "text-muted-foreground/50"
+                    }`}
+                  >
+                    W Van Buren St
+                  </div>
+                  <div 
+                    className={`absolute left-[22%] top-[62%] px-1 py-0.5 text-[8px] font-medium ${
+                      mapStyle === "satellite" ? "text-white/50" : "text-muted-foreground/50"
+                    }`}
+                  >
+                    W Polk St
+                  </div>
+                  <div 
+                    className={`absolute left-[33%] top-[8%] px-1 py-0.5 text-[8px] font-medium origin-left ${
+                      mapStyle === "satellite" ? "text-white/50" : "text-muted-foreground/50"
+                    }`}
+                    style={{ transform: 'rotate(90deg)', transformOrigin: 'left center' }}
+                  >
+                    S Dearborn St
+                  </div>
+                  <div 
+                    className={`absolute left-[43%] top-[8%] px-1 py-0.5 text-[8px] font-medium origin-left ${
+                      mapStyle === "satellite" ? "text-white/50" : "text-muted-foreground/50"
+                    }`}
+                    style={{ transform: 'rotate(90deg)', transformOrigin: 'left center' }}
+                  >
+                    S Wabash Ave
+                  </div>
+                </>
+              )}
+
+              {/* Park Labels */}
+              {zoom >= 12 && (
+                <>
+                  <div 
+                    className={`absolute left-[20%] top-[25%] px-2 py-1 text-[10px] font-semibold italic ${
+                      mapStyle === "satellite" ? "text-emerald-300/80" : "text-emerald-700/70"
+                    }`}
+                    style={{ fontSize: `${Math.max(9, zoom - 3)}px` }}
+                  >
+                    Union Park
+                  </div>
+                  <div 
+                    className={`absolute left-[43%] top-[47%] px-2 py-1 text-[10px] font-semibold italic ${
+                      mapStyle === "satellite" ? "text-emerald-300/80" : "text-emerald-700/70"
+                    }`}
+                    style={{ fontSize: `${Math.max(9, zoom - 3)}px` }}
+                  >
+                    Grant Park
+                  </div>
+                </>
+              )}
+
+              {/* Lake Michigan Label */}
+              <div 
+                className={`absolute right-[8%] top-[45%] px-3 py-1 text-sm font-bold italic tracking-widest ${
+                  mapStyle === "satellite" ? "text-cyan-200/60" : "text-blue-400/50"
+                }`}
+                style={{ fontSize: `${Math.max(12, zoom)}px` }}
+              >
+                Lake Michigan
+              </div>
+
+              {/* Neighborhood Labels at medium zoom */}
+              {zoom >= 11 && zoom <= 14 && (
+                <>
+                  <div 
+                    className={`absolute left-[35%] top-[35%] px-2 py-1 text-xs font-bold tracking-wide ${
+                      mapStyle === "satellite" ? "text-white/40" : "text-foreground/30"
+                    }`}
+                  >
+                    THE LOOP
+                  </div>
+                  <div 
+                    className={`absolute left-[15%] top-[55%] px-2 py-1 text-xs font-bold tracking-wide ${
+                      mapStyle === "satellite" ? "text-white/40" : "text-foreground/30"
+                    }`}
+                  >
+                    SOUTH LOOP
+                  </div>
+                  <div 
+                    className={`absolute left-[12%] top-[18%] px-2 py-1 text-xs font-bold tracking-wide ${
+                      mapStyle === "satellite" ? "text-white/40" : "text-foreground/30"
+                    }`}
+                  >
+                    WEST TOWN
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Property Pins */}
