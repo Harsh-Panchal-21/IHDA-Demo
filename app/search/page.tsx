@@ -549,8 +549,16 @@ export default function SearchPage() {
     }
   }, [])
 
-  // Filter properties based on filters
+  // Extract current search city
+  const searchCity = searchLocation.toLowerCase().split(",")[0].trim()
+
+  // Filter properties based on filters and location
   const filteredProperties = properties.filter((property) => {
+    // Filter by city/location
+    if (searchCity && searchCity !== "all" && searchCity !== "illinois") {
+      if (property.city.toLowerCase() !== searchCity) return false
+    }
+    
     // Filter by rent
     if (property.rent < filters.minRent || property.rent > filters.maxRent) return false
     
