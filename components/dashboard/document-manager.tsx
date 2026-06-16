@@ -185,6 +185,45 @@ function formatDate(isoDate: string): string {
   return `${months[month - 1]} ${day}, ${year}`
 }
 
+// Visual styling per file type for the document thumbnails.
+function getFileTypeStyle(fileType: DocItem["fileType"]): {
+  icon: typeof FileText
+  iconClass: string
+  bgClass: string
+  label: string
+} {
+  switch (fileType) {
+    case "signature":
+      return {
+        icon: FileSignature,
+        iconClass: "text-violet-600",
+        bgClass: "bg-violet-100",
+        label: "Signature",
+      }
+    case "image":
+      return {
+        icon: FileImage,
+        iconClass: "text-blue-600",
+        bgClass: "bg-blue-100",
+        label: "Image",
+      }
+    case "pdf":
+      return {
+        icon: FileText,
+        iconClass: "text-red-600",
+        bgClass: "bg-red-100",
+        label: "PDF",
+      }
+    default:
+      return {
+        icon: FileText,
+        iconClass: "text-slate-600",
+        bgClass: "bg-slate-100",
+        label: "File",
+      }
+  }
+}
+
 export function DocumentManager() {
   const [documents, setDocuments] = useState<DocItem[]>(initialDocuments)
   const [search, setSearch] = useState("")
@@ -612,30 +651,69 @@ export function DocumentManager() {
               {filteredDocuments.map((doc) => {
                 const status = statusConfig[doc.status]
                 const StatusIcon = status.icon
-                const FileIcon =
-                  doc.fileType === "signature"
-                    ? FileSignature
-                    : doc.fileType === "image"
-                    ? FileImage
-                    : FileText
+                const typeStyle = getFileTypeStyle(doc.fileType)
+                const FileIcon = typeStyle.icon
+                const hasThumbnail =
+                  !!doc.url && (doc.fileType === "image" || doc.fileType === "signature")
 
                 return (
                   <div
                     key={doc.id}
-                    className="flex flex-col gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between"
+                    className="group flex flex-col gap-4 rounded-xl border bg-card p-4 transition-all hover:border-primary/40 hover:shadow-sm sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-                        <FileIcon className="h-5 w-5 text-muted-foreground" />
-                      </div>
+                    <div className="flex min-w-0 items-start gap-4">
+                      {/* Thumbnail / type badge */}
+                      <button
+                        type="button"
+                        onClick={() => setPreviewDoc(doc)}
+                        aria-label={`Preview ${doc.name}`}
+                        className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg ring-1 ring-border transition-transform hover:scale-105"
+                      >
+                        {hasThumbnail ? (
+                          <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={doc.url || "/placeholder.svg"}
+                              alt={doc.name}
+                              className="h-full w-full object-cover"
+                            />
+                            <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-opacity group-hover:bg-black/30 group-hover:opacity-100">
+                              <Eye className="h-4 w-4 text-white" />
+                            </span>
+                          </>
+                        ) : (
+                          <span
+                            className={`flex h-full w-full items-center justify-center ${typeStyle.bgClass}`}
+                          >
+                            <FileIcon className={`h-6 w-6 ${typeStyle.iconClass}`} />
+                          </span>
+                        )}
+                      </button>
+
                       <div className="min-w-0">
-                        <h4 className="truncate font-medium text-foreground">{doc.name}</h4>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <h4 className="truncate font-semibold text-foreground">{doc.name}</h4>
+                          {doc.required && (
+                            <Badge variant="secondary" className="shrink-0 text-[10px]">
+                              Required
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                          <span className="font-medium uppercase tracking-wide">
+                            {typeStyle.label}
+                          </span>
+                          <span aria-hidden>•</span>
                           <span>{doc.fileSize}</span>
-                          <span>•</span>
+                          <span aria-hidden>•</span>
                           <span>Uploaded {formatDate(doc.uploadedDate)}</span>
                         </div>
-                        {doc.note && <p className="mt-2 text-sm text-red-600">{doc.note}</p>}
+                        {doc.note && (
+                          <p className="mt-2 flex items-start gap-1.5 rounded-md bg-red-50 p-2 text-xs text-red-700">
+                            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                            <span>{doc.note}</span>
+                          </p>
+                        )}
                         <div className="mt-2">
                           <Select
                             value={doc.category}
@@ -655,7 +733,7 @@ export function DocumentManager() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 sm:flex-col sm:items-end lg:flex-row lg:items-center">
+                    <div className="flex items-center justify-between gap-2 border-t pt-3 sm:flex-col sm:items-end sm:border-t-0 sm:pt-0 lg:flex-row lg:items-center">
                       <Badge variant="outline" className={status.color}>
                         <StatusIcon className="mr-1 h-3 w-3" />
                         {status.label}
@@ -682,7 +760,7 @@ export function DocumentManager() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-destructive"
+                          className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
                           aria-label={`Delete ${doc.name}`}
                           onClick={() => setDeleteDoc(doc)}
                         >
@@ -702,29 +780,59 @@ export function DocumentManager() {
       <Dialog open={!!previewDoc} onOpenChange={(open) => !open && setPreviewDoc(null)}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle className="truncate pr-8">{previewDoc?.name}</DialogTitle>
-            <DialogDescription>
-              {previewDoc?.fileSize} • Uploaded{" "}
-              {previewDoc && formatDate(previewDoc.uploadedDate)}
-            </DialogDescription>
+            <div className="flex items-start gap-3 pr-8">
+              {previewDoc && (
+                <span
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${getFileTypeStyle(previewDoc.fileType).bgClass}`}
+                >
+                  {(() => {
+                    const Icon = getFileTypeStyle(previewDoc.fileType).icon
+                    return <Icon className={`h-5 w-5 ${getFileTypeStyle(previewDoc.fileType).iconClass}`} />
+                  })()}
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                <DialogTitle className="truncate">{previewDoc?.name}</DialogTitle>
+                <DialogDescription className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="font-medium uppercase tracking-wide">
+                    {previewDoc && getFileTypeStyle(previewDoc.fileType).label}
+                  </span>
+                  <span aria-hidden>•</span>
+                  <span>{previewDoc?.fileSize}</span>
+                  <span aria-hidden>•</span>
+                  <span>Uploaded {previewDoc && formatDate(previewDoc.uploadedDate)}</span>
+                </DialogDescription>
+              </div>
+              {previewDoc && (
+                <Badge variant="outline" className={`${statusConfig[previewDoc.status].color} shrink-0`}>
+                  {(() => {
+                    const SIcon = statusConfig[previewDoc.status].icon
+                    return <SIcon className="mr-1 h-3 w-3" />
+                  })()}
+                  {statusConfig[previewDoc.status].label}
+                </Badge>
+              )}
+            </div>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-auto rounded-lg border bg-muted/30">
+          <div className="flex max-h-[60vh] items-center justify-center overflow-auto rounded-lg border bg-muted/30 p-2">
             {previewDoc?.url && (previewDoc.fileType === "image" || previewDoc.fileType === "signature") ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={previewDoc.url || "/placeholder.svg"}
                 alt={previewDoc.name}
-                className="mx-auto max-h-[60vh] w-auto object-contain"
+                className="mx-auto max-h-[58vh] w-auto rounded-md object-contain shadow-sm"
               />
             ) : previewDoc?.url && previewDoc.fileType === "pdf" ? (
               <iframe
                 src={previewDoc.url}
                 title={previewDoc.name}
-                className="h-[60vh] w-full"
+                className="h-[58vh] w-full rounded-md"
               />
             ) : (
               <div className="flex flex-col items-center justify-center py-16 text-center">
-                <FileText className="h-16 w-16 text-muted-foreground/40" />
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                  <FileText className="h-8 w-8 text-muted-foreground/50" />
+                </div>
                 <p className="mt-4 font-medium text-foreground">Preview not available</p>
                 <p className="mt-1 max-w-sm text-sm text-muted-foreground">
                   This is a demo document without a stored file. Uploaded files show a live preview here.
