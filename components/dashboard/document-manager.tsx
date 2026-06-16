@@ -58,6 +58,10 @@ import {
   FileType2,
   ChevronDown,
   FileSignature,
+  ZoomIn,
+  ZoomOut,
+  ExternalLink,
+  RotateCcw,
 } from "lucide-react"
 
 type DocStatus = "verified" | "pending" | "action-required"
@@ -231,9 +235,16 @@ export function DocumentManager() {
   const [isDragging, setIsDragging] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [previewDoc, setPreviewDoc] = useState<DocItem | null>(null)
+  const [previewZoom, setPreviewZoom] = useState(1)
   const [deleteDoc, setDeleteDoc] = useState<DocItem | null>(null)
   const [signatureOpen, setSignatureOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Open the preview and reset zoom to default
+  const openPreview = useCallback((doc: DocItem) => {
+    setPreviewZoom(1)
+    setPreviewDoc(doc)
+  }, [])
 
   // Clean up object URLs on unmount
   useEffect(() => {
@@ -665,7 +676,7 @@ export function DocumentManager() {
                       {/* Thumbnail / type badge */}
                       <button
                         type="button"
-                        onClick={() => setPreviewDoc(doc)}
+                        onClick={() => openPreview(doc)}
                         aria-label={`Preview ${doc.name}`}
                         className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg ring-1 ring-border transition-transform hover:scale-105"
                       >
@@ -744,7 +755,7 @@ export function DocumentManager() {
                           size="icon"
                           className="h-8 w-8"
                           aria-label={`Preview ${doc.name}`}
-                          onClick={() => setPreviewDoc(doc)}
+                          onClick={() => openPreview(doc)}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -778,8 +789,9 @@ export function DocumentManager() {
 
       {/* Preview Dialog */}
       <Dialog open={!!previewDoc} onOpenChange={(open) => !open && setPreviewDoc(null)}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl gap-0 overflow-hidden p-0">
+          {/* Header */}
+          <DialogHeader className="border-b p-4">
             <div className="flex items-start gap-3 pr-8">
               {previewDoc && (
                 <span
@@ -792,7 +804,7 @@ export function DocumentManager() {
                 </span>
               )}
               <div className="min-w-0 flex-1">
-                <DialogTitle className="truncate">{previewDoc?.name}</DialogTitle>
+                <DialogTitle className="truncate text-left">{previewDoc?.name}</DialogTitle>
                 <DialogDescription className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="font-medium uppercase tracking-wide">
                     {previewDoc && getFileTypeStyle(previewDoc.fileType).label}
@@ -814,38 +826,112 @@ export function DocumentManager() {
               )}
             </div>
           </DialogHeader>
-          <div className="flex max-h-[60vh] items-center justify-center overflow-auto rounded-lg border bg-muted/30 p-2">
+
+          {/* Toolbar — only for zoomable image/signature previews */}
+          {previewDoc?.url && (previewDoc.fileType === "image" || previewDoc.fileType === "signature") && (
+            <div className="flex items-center justify-between border-b bg-muted/40 px-4 py-2">
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  aria-label="Zoom out"
+                  disabled={previewZoom <= 0.5}
+                  onClick={() => setPreviewZoom((z) => Math.max(0.5, Math.round((z - 0.25) * 100) / 100))}
+                >
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+                <span className="w-12 text-center text-xs font-medium tabular-nums text-muted-foreground">
+                  {Math.round(previewZoom * 100)}%
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  aria-label="Zoom in"
+                  disabled={previewZoom >= 3}
+                  onClick={() => setPreviewZoom((z) => Math.min(3, Math.round((z + 0.25) * 100) / 100))}
+                >
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  aria-label="Reset zoom"
+                  disabled={previewZoom === 1}
+                  onClick={() => setPreviewZoom(1)}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                onClick={() => previewDoc.url && window.open(previewDoc.url, "_blank")}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Open in new tab
+              </Button>
+            </div>
+          )}
+
+          {/* Viewer body */}
+          <div
+            className="flex max-h-[60vh] min-h-[300px] items-center justify-center overflow-auto bg-muted/50 p-6"
+            style={
+              previewDoc?.fileType === "pdf"
+                ? undefined
+                : {
+                    backgroundImage:
+                      "linear-gradient(45deg, rgb(0 0 0 / 0.04) 25%, transparent 25%), linear-gradient(-45deg, rgb(0 0 0 / 0.04) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgb(0 0 0 / 0.04) 75%), linear-gradient(-45deg, transparent 75%, rgb(0 0 0 / 0.04) 75%)",
+                    backgroundSize: "20px 20px",
+                    backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
+                  }
+            }
+          >
             {previewDoc?.url && (previewDoc.fileType === "image" || previewDoc.fileType === "signature") ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={previewDoc.url || "/placeholder.svg"}
                 alt={previewDoc.name}
-                className="mx-auto max-h-[58vh] w-auto rounded-md object-contain shadow-sm"
+                className="rounded-md bg-white shadow-lg ring-1 ring-black/5 transition-transform duration-150"
+                style={{
+                  maxHeight: "52vh",
+                  width: "auto",
+                  transform: `scale(${previewZoom})`,
+                  padding: previewDoc.fileType === "signature" ? "1.5rem" : "0",
+                }}
               />
             ) : previewDoc?.url && previewDoc.fileType === "pdf" ? (
               <iframe
                 src={previewDoc.url}
                 title={previewDoc.name}
-                className="h-[58vh] w-full rounded-md"
+                className="h-[55vh] w-full rounded-md bg-white shadow-sm ring-1 ring-black/5"
               />
             ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                  <FileText className="h-8 w-8 text-muted-foreground/50" />
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-background shadow-sm ring-1 ring-border">
+                  <FileText className="h-9 w-9 text-muted-foreground/50" />
                 </div>
                 <p className="mt-4 font-medium text-foreground">Preview not available</p>
                 <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                  This is a demo document without a stored file. Uploaded files show a live preview here.
+                  This is a sample document without a stored file. Files you upload show a live preview here.
                 </p>
               </div>
             )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => previewDoc && handleDownload(previewDoc)}>
+
+          {/* Footer */}
+          <DialogFooter className="border-t p-4">
+            <Button variant="outline" onClick={() => setPreviewDoc(null)}>
+              Close
+            </Button>
+            <Button onClick={() => previewDoc && handleDownload(previewDoc)}>
               <Download className="mr-2 h-4 w-4" />
               Download
             </Button>
-            <Button onClick={() => setPreviewDoc(null)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
