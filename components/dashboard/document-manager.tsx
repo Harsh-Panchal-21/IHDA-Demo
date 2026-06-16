@@ -789,7 +789,11 @@ export function DocumentManager() {
 
       {/* Preview Dialog */}
       <Dialog open={!!previewDoc} onOpenChange={(open) => !open && setPreviewDoc(null)}>
-        <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col gap-0 overflow-hidden p-0">
+        <DialogContent
+          className={`flex max-w-4xl flex-col gap-0 overflow-hidden p-0 ${
+            previewDoc?.fileType === "pdf" ? "h-[92vh] max-h-[92vh] sm:max-w-5xl" : "max-h-[90vh]"
+          }`}
+        >
           {/* Header */}
           <DialogHeader className="shrink-0 border-b p-4">
             <div className="flex items-start gap-3 pr-8">
@@ -879,7 +883,9 @@ export function DocumentManager() {
 
           {/* Viewer body */}
           <div
-            className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-muted/50 p-6"
+            className={`flex min-h-0 flex-1 items-center justify-center overflow-auto bg-muted/50 ${
+              previewDoc?.fileType === "pdf" ? "p-0" : "p-6"
+            }`}
             style={
               previewDoc?.fileType === "pdf"
                 ? undefined
@@ -905,9 +911,9 @@ export function DocumentManager() {
               </div>
             ) : previewDoc?.url && previewDoc.fileType === "pdf" ? (
               <iframe
-                src={previewDoc.url}
+                src={`${previewDoc.url}#view=FitH&toolbar=1&navpanes=0`}
                 title={previewDoc.name}
-                className="h-full w-full rounded-md bg-white shadow-sm ring-1 ring-black/5"
+                className="h-full w-full border-0 bg-white"
               />
             ) : (
               <div className="flex flex-col items-center justify-center py-12 text-center">
