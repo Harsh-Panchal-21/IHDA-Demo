@@ -5,6 +5,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   CalendarDays,
   Clock,
@@ -70,7 +87,7 @@ function isoOffset(days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
-const EVENTS: ScheduleEvent[] = [
+const INITIAL_EVENTS: ScheduleEvent[] = [
   {
     id: "1",
     date: isoOffset(0),
@@ -143,32 +160,79 @@ function toIso(d: Date): string {
 
 export function ScheduleCalendar() {
   const [selected, setSelected] = useState<Date>(new Date())
+  const [events, setEvents] = useState<ScheduleEvent[]>(INITIAL_EVENTS)
+  const [addOpen, setAddOpen] = useState(false)
+
+  // Add Event form state
+  const [form, setForm] = useState<{
+    title: string
+    type: EventType
+    date: string
+    time: string
+    location: string
+    mode: "in-person" | "virtual"
+  }>({
+    title: "",
+    type: "viewing",
+    date: toIso(new Date()),
+    time: "",
+    location: "",
+    mode: "in-person",
+  })
+
+  function openAddDialog() {
+    setForm({
+      title: "",
+      type: "viewing",
+      date: toIso(selected),
+      time: "",
+      location: "",
+      mode: "in-person",
+    })
+    setAddOpen(true)
+  }
+
+  function handleAddEvent() {
+    if (!form.title.trim() || !form.date) return
+    const newEvent: ScheduleEvent = {
+      id: `${Date.now()}`,
+      title: form.title.trim(),
+      type: form.type,
+      date: form.date,
+      time: form.time.trim() || "All day",
+      location: form.location.trim() || "To be determined",
+      mode: form.mode,
+    }
+    setEvents((prev) => [...prev, newEvent])
+    setSelected(new Date(form.date + "T00:00:00"))
+    setAddOpen(false)
+  }
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, ScheduleEvent[]>()
-    for (const ev of EVENTS) {
+    for (const ev of events) {
       const list = map.get(ev.date) ?? []
       list.push(ev)
       map.set(ev.date, list)
     }
     return map
-  }, [])
+  }, [events])
 
   const selectedIso = toIso(selected)
   const dayEvents = eventsByDate.get(selectedIso) ?? []
 
   const upcoming = useMemo(() => {
     const todayIso = toIso(new Date())
-    return [...EVENTS]
+    return [...events]
       .filter((e) => e.date >= todayIso)
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(0, 4)
-  }, [])
+  }, [events])
 
   // Dates that have events, for calendar modifiers
   const eventDays = useMemo(
-    () => EVENTS.map((e) => new Date(e.date + "T00:00:00")),
-    [],
+    () => events.map((e) => new Date(e.date + "T00:00:00")),
+    [events],
   )
 
   return (
@@ -180,7 +244,7 @@ export function ScheduleCalendar() {
             <CalendarDays className="h-5 w-5 text-primary" />
             Schedule
           </CardTitle>
-          <Button size="sm" variant="outline">
+          <Button size="sm" variant="outline" onClick={openAddDialog}>
             <Plus className="mr-1 h-4 w-4" />
             Add Event
           </Button>
@@ -315,6 +379,106 @@ export function ScheduleCalendar() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Add Event Dialog */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Event</DialogTitle>
+            <DialogDescription>
+              Schedule a viewing, appointment, interview, or deadline.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="event-title">Title</Label>
+              <Input
+                id="event-title"
+                placeholder="e.g. Apartment viewing"
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="event-type">Type</Label>
+                <Select
+                  value={form.type}
+                  onValueChange={(v) => setForm((f) => ({ ...f, type: v as EventType }))}
+                >
+                  <SelectTrigger id="event-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="viewing">Property Viewing</SelectItem>
+                    <SelectItem value="appointment">Appointment</SelectItem>
+                    <SelectItem value="interview">Interview</SelectItem>
+                    <SelectItem value="deadline">Deadline</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="event-mode">Mode</Label>
+                <Select
+                  value={form.mode}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, mode: v as "in-person" | "virtual" }))
+                  }
+                >
+                  <SelectTrigger id="event-mode">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="in-person">In-person</SelectItem>
+                    <SelectItem value="virtual">Virtual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="event-date">Date</Label>
+                <Input
+                  id="event-date"
+                  type="date"
+                  value={form.date}
+                  onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="event-time">Time</Label>
+                <Input
+                  id="event-time"
+                  placeholder="e.g. 10:00 AM"
+                  value={form.time}
+                  onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="event-location">Location</Label>
+              <Input
+                id="event-location"
+                placeholder="Address or meeting link"
+                value={form.location}
+                onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddEvent} disabled={!form.title.trim() || !form.date}>
+              <Plus className="mr-1 h-4 w-4" />
+              Add Event
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
