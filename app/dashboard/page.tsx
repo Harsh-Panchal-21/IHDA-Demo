@@ -1,10 +1,8 @@
 import { Navbar } from "@/components/navbar"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
 import { DashboardOverview } from "@/components/dashboard/dashboard-overview"
-import { WaitlistTracker } from "@/components/dashboard/waitlist-tracker"
-import { SavedProperties } from "@/components/dashboard/saved-properties"
-import { RecentActivity } from "@/components/dashboard/recent-activity"
 import { NotificationBanner } from "@/components/dashboard/notification-banner"
+import { DashboardTabs } from "@/components/dashboard/dashboard-tabs"
 
 export const metadata = {
   title: "My Dashboard | IHDA Housing Locator",
@@ -30,23 +28,8 @@ export default function DashboardPage() {
             {/* Overview Cards */}
             <DashboardOverview />
 
-            {/* Main Grid */}
-            <div className="mt-8 grid gap-8 lg:grid-cols-3">
-              {/* Waitlist Tracker - Takes 2 columns */}
-              <div className="lg:col-span-2">
-                <WaitlistTracker />
-              </div>
-
-              {/* Recent Activity */}
-              <div className="lg:col-span-1">
-                <RecentActivity />
-              </div>
-            </div>
-
-            {/* Saved Properties */}
-            <div className="mt-8">
-              <SavedProperties />
-            </div>
+            {/* Tabbed content: Overview + Calendar */}
+            <DashboardTabs />
           </div>
         </main>
       </div>
