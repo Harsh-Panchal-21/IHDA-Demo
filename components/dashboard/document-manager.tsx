@@ -879,7 +879,7 @@ export function DocumentManager() {
 
           {/* Viewer body */}
           <div
-            className="flex max-h-[60vh] min-h-[300px] items-center justify-center overflow-auto bg-muted/50 p-6"
+            className="flex h-[60vh] min-h-[320px] items-center justify-center overflow-auto bg-muted/50 p-6"
             style={
               previewDoc?.fileType === "pdf"
                 ? undefined
@@ -892,23 +892,22 @@ export function DocumentManager() {
             }
           >
             {previewDoc?.url && (previewDoc.fileType === "image" || previewDoc.fileType === "signature") ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={previewDoc.url || "/placeholder.svg"}
-                alt={previewDoc.name}
-                className="rounded-md bg-white shadow-lg ring-1 ring-black/5 transition-transform duration-150"
-                style={{
-                  maxHeight: "52vh",
-                  width: "auto",
-                  transform: `scale(${previewZoom})`,
-                  padding: previewDoc.fileType === "signature" ? "1.5rem" : "0",
-                }}
-              />
+              <div className="flex items-center justify-center" style={{ transform: `scale(${previewZoom})`, transition: "transform 150ms" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewDoc.url || "/placeholder.svg"}
+                  alt={previewDoc.name}
+                  className="block max-h-[calc(60vh-3rem)] max-w-full rounded-md bg-white object-contain shadow-lg ring-1 ring-black/5"
+                  style={{
+                    padding: previewDoc.fileType === "signature" ? "1.5rem" : "0",
+                  }}
+                />
+              </div>
             ) : previewDoc?.url && previewDoc.fileType === "pdf" ? (
               <iframe
                 src={previewDoc.url}
                 title={previewDoc.name}
-                className="h-[55vh] w-full rounded-md bg-white shadow-sm ring-1 ring-black/5"
+                className="h-full w-full rounded-md bg-white shadow-sm ring-1 ring-black/5"
               />
             ) : (
               <div className="flex flex-col items-center justify-center py-12 text-center">
