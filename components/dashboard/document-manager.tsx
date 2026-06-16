@@ -789,9 +789,9 @@ export function DocumentManager() {
 
       {/* Preview Dialog */}
       <Dialog open={!!previewDoc} onOpenChange={(open) => !open && setPreviewDoc(null)}>
-        <DialogContent className="max-w-4xl gap-0 overflow-hidden p-0">
+        <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col gap-0 overflow-hidden p-0">
           {/* Header */}
-          <DialogHeader className="border-b p-4">
+          <DialogHeader className="shrink-0 border-b p-4">
             <div className="flex items-start gap-3 pr-8">
               {previewDoc && (
                 <span
@@ -829,7 +829,7 @@ export function DocumentManager() {
 
           {/* Toolbar — only for zoomable image/signature previews */}
           {previewDoc?.url && (previewDoc.fileType === "image" || previewDoc.fileType === "signature") && (
-            <div className="flex items-center justify-between border-b bg-muted/40 px-4 py-2">
+            <div className="flex shrink-0 items-center justify-between border-b bg-muted/40 px-4 py-2">
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
@@ -879,7 +879,7 @@ export function DocumentManager() {
 
           {/* Viewer body */}
           <div
-            className="flex h-[60vh] min-h-[320px] items-center justify-center overflow-auto bg-muted/50 p-6"
+            className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-muted/50 p-6"
             style={
               previewDoc?.fileType === "pdf"
                 ? undefined
@@ -892,12 +892,12 @@ export function DocumentManager() {
             }
           >
             {previewDoc?.url && (previewDoc.fileType === "image" || previewDoc.fileType === "signature") ? (
-              <div className="flex items-center justify-center" style={{ transform: `scale(${previewZoom})`, transition: "transform 150ms" }}>
+              <div className="flex max-h-full max-w-full items-center justify-center" style={{ transform: `scale(${previewZoom})`, transition: "transform 150ms" }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={previewDoc.url || "/placeholder.svg"}
                   alt={previewDoc.name}
-                  className="block max-h-[calc(60vh-3rem)] max-w-full rounded-md bg-white object-contain shadow-lg ring-1 ring-black/5"
+                  className="block max-h-full max-w-full rounded-md bg-white object-contain shadow-lg ring-1 ring-black/5"
                   style={{
                     padding: previewDoc.fileType === "signature" ? "1.5rem" : "0",
                   }}
@@ -923,7 +923,7 @@ export function DocumentManager() {
           </div>
 
           {/* Footer */}
-          <DialogFooter className="border-t p-4">
+          <DialogFooter className="shrink-0 border-t p-4">
             <Button variant="outline" onClick={() => setPreviewDoc(null)}>
               Close
             </Button>
