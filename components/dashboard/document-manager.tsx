@@ -32,6 +32,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { SignaturePad } from "@/components/dashboard/signature-pad"
+import {
   FileText,
   Upload,
   Download,
@@ -44,6 +53,11 @@ import {
   Search,
   X,
   CloudUpload,
+  PenLine,
+  FileSpreadsheet,
+  FileType2,
+  ChevronDown,
+  FileSignature,
 } from "lucide-react"
 
 type DocStatus = "verified" | "pending" | "action-required"
@@ -54,13 +68,15 @@ interface DocItem {
   category: string
   status: DocStatus
   uploadedDate: string
-  fileType: "pdf" | "image" | "other"
+  fileType: "pdf" | "image" | "other" | "signature"
   fileSize: string
   required: boolean
   note?: string
   // For real uploaded files
   url?: string
   mimeType?: string
+  // For e-signatures
+  signerName?: string
 }
 
 const CATEGORIES = [
@@ -68,6 +84,7 @@ const CATEGORIES = [
   { value: "income", label: "Proof of Income" },
   { value: "financial", label: "Financial" },
   { value: "rental", label: "Rental History" },
+  { value: "signature", label: "Signed Documents" },
   { value: "other", label: "Other" },
 ]
 
@@ -156,6 +173,18 @@ function getFileType(mime: string): "pdf" | "image" | "other" {
   return "other"
 }
 
+// Timezone-safe date formatter — parses "YYYY-MM-DD" as a local date to
+// avoid server/client hydration mismatches from UTC offset shifts.
+function formatDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-").map(Number)
+  if (!year || !month || !day) return isoDate
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ]
+  return `${months[month - 1]} ${day}, ${year}`
+}
+
 export function DocumentManager() {
   const [documents, setDocuments] = useState<DocItem[]>(initialDocuments)
   const [search, setSearch] = useState("")
@@ -164,6 +193,7 @@ export function DocumentManager() {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [previewDoc, setPreviewDoc] = useState<DocItem | null>(null)
   const [deleteDoc, setDeleteDoc] = useState<DocItem | null>(null)
+  const [signatureOpen, setSignatureOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Clean up object URLs on unmount
@@ -256,6 +286,119 @@ export function DocumentManager() {
     setDeleteDoc(null)
   }, [deleteDoc])
 
+  const handleSaveSignature = useCallback((dataUrl: string, signerName: string) => {
+    // Convert data URL to blob to estimate size and create an object URL
+    const byteString = atob(dataUrl.split(",")[1])
+    const arrayBuffer = new ArrayBuffer(byteString.length)
+    const intArray = new Uint8Array(arrayBuffer)
+    for (let i = 0; i < byteString.length; i++) {
+      intArray[i] = byteString.charCodeAt(i)
+    }
+    const blob = new Blob([arrayBuffer], { type: "image/png" })
+    const url = URL.createObjectURL(blob)
+
+    setDocuments((prev) => [
+      {
+        id: `sig-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        name: `E-Signature - ${signerName}`,
+        category: "signature",
+        status: "verified" as DocStatus,
+        uploadedDate: new Date().toISOString().slice(0, 10),
+        fileType: "signature" as const,
+        fileSize: formatBytes(blob.size),
+        required: false,
+        url,
+        mimeType: "image/png",
+        signerName,
+      },
+      ...prev,
+    ])
+    setSignatureOpen(false)
+  }, [])
+
+  const triggerFileDownload = useCallback((content: string, filename: string, mime: string) => {
+    const blob = new Blob([content], { type: mime })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, [])
+
+  const exportToCSV = useCallback(() => {
+    const headers = ["Document Name", "Category", "Status", "File Type", "File Size", "Uploaded Date"]
+    const escape = (val: string) => `"${val.replace(/"/g, '""')}"`
+    const rows = documents.map((doc) => {
+      const categoryLabel = CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category
+      return [
+        doc.name,
+        categoryLabel,
+        statusConfig[doc.status].label,
+        doc.fileType,
+        doc.fileSize,
+        formatDate(doc.uploadedDate),
+      ].map((v) => escape(String(v))).join(",")
+    })
+    const csv = [headers.map(escape).join(","), ...rows].join("\n")
+    // Prepend BOM so Excel reads UTF-8 correctly
+    triggerFileDownload("\uFEFF" + csv, "documents.csv", "text/csv;charset=utf-8")
+  }, [documents, triggerFileDownload])
+
+  const exportToWord = useCallback(() => {
+    const generated = new Date().toLocaleString()
+    const tableRows = documents
+      .map((doc) => {
+        const categoryLabel = CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category
+        return `<tr>
+          <td>${doc.name}</td>
+          <td>${categoryLabel}</td>
+          <td>${statusConfig[doc.status].label}</td>
+          <td>${doc.fileSize}</td>
+          <td>${formatDate(doc.uploadedDate)}</td>
+        </tr>`
+      })
+      .join("")
+
+    const html = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Documents Report</title></head>
+<body style="font-family: Arial, sans-serif;">
+  <h1 style="color:#1e293b;">IHDA Housing Locator</h1>
+  <h2>Document Report</h2>
+  <p style="color:#64748b;">Generated: ${generated}</p>
+  <table border="1" cellspacing="0" cellpadding="8" style="border-collapse:collapse; width:100%;">
+    <thead>
+      <tr style="background:#f1f5f9;">
+        <th align="left">Document Name</th>
+        <th align="left">Category</th>
+        <th align="left">Status</th>
+        <th align="left">File Size</th>
+        <th align="left">Uploaded</th>
+      </tr>
+    </thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+  <p style="margin-top:24px; color:#64748b; font-size:12px;">Total documents: ${documents.length}</p>
+</body>
+</html>`
+    triggerFileDownload(html, "documents.doc", "application/msword")
+  }, [documents, triggerFileDownload])
+
+  const exportToJSON = useCallback(() => {
+    const data = documents.map((doc) => ({
+      name: doc.name,
+      category: CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category,
+      status: statusConfig[doc.status].label,
+      fileType: doc.fileType,
+      fileSize: doc.fileSize,
+      uploadedDate: doc.uploadedDate,
+    }))
+    triggerFileDownload(JSON.stringify(data, null, 2), "documents.json", "application/json")
+  }, [documents, triggerFileDownload])
+
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) => {
       const matchesSearch = doc.name.toLowerCase().includes(search.toLowerCase())
@@ -284,13 +427,44 @@ export function DocumentManager() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">My Documents</h1>
           <p className="mt-1 text-muted-foreground">
-            Upload and manage documents for your applications
+            Upload, sign, and manage documents for your applications
           </p>
         </div>
-        <Button onClick={() => fileInputRef.current?.click()}>
-          <Upload className="mr-2 h-4 w-4" />
-          Upload Document
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" disabled={documents.length === 0}>
+                <Download className="mr-2 h-4 w-4" />
+                Export
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Export document list</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={exportToCSV}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Excel / CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToWord}>
+                <FileType2 className="mr-2 h-4 w-4" />
+                Word Document
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToJSON}>
+                <FileText className="mr-2 h-4 w-4" />
+                JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button variant="outline" onClick={() => setSignatureOpen(true)}>
+            <PenLine className="mr-2 h-4 w-4" />
+            Sign Document
+          </Button>
+          <Button onClick={() => fileInputRef.current?.click()}>
+            <Upload className="mr-2 h-4 w-4" />
+            Upload Document
+          </Button>
+        </div>
       </div>
 
       {/* Hidden file input */}
@@ -438,7 +612,12 @@ export function DocumentManager() {
               {filteredDocuments.map((doc) => {
                 const status = statusConfig[doc.status]
                 const StatusIcon = status.icon
-                const FileIcon = doc.fileType === "image" ? FileImage : FileText
+                const FileIcon =
+                  doc.fileType === "signature"
+                    ? FileSignature
+                    : doc.fileType === "image"
+                    ? FileImage
+                    : FileText
 
                 return (
                   <div
@@ -454,7 +633,7 @@ export function DocumentManager() {
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           <span>{doc.fileSize}</span>
                           <span>•</span>
-                          <span>Uploaded {new Date(doc.uploadedDate).toLocaleDateString()}</span>
+                          <span>Uploaded {formatDate(doc.uploadedDate)}</span>
                         </div>
                         {doc.note && <p className="mt-2 text-sm text-red-600">{doc.note}</p>}
                         <div className="mt-2">
@@ -526,11 +705,11 @@ export function DocumentManager() {
             <DialogTitle className="truncate pr-8">{previewDoc?.name}</DialogTitle>
             <DialogDescription>
               {previewDoc?.fileSize} • Uploaded{" "}
-              {previewDoc && new Date(previewDoc.uploadedDate).toLocaleDateString()}
+              {previewDoc && formatDate(previewDoc.uploadedDate)}
             </DialogDescription>
           </DialogHeader>
           <div className="max-h-[60vh] overflow-auto rounded-lg border bg-muted/30">
-            {previewDoc?.url && previewDoc.fileType === "image" ? (
+            {previewDoc?.url && (previewDoc.fileType === "image" || previewDoc.fileType === "signature") ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={previewDoc.url || "/placeholder.svg"}
@@ -560,6 +739,24 @@ export function DocumentManager() {
             </Button>
             <Button onClick={() => setPreviewDoc(null)}>Close</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* E-Signature Dialog */}
+      <Dialog open={signatureOpen} onOpenChange={setSignatureOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Sign Document</DialogTitle>
+            <DialogDescription>
+              Draw your signature below. It will be saved to your documents as a verified e-signature.
+            </DialogDescription>
+          </DialogHeader>
+          {signatureOpen && (
+            <SignaturePad
+              onSave={handleSaveSignature}
+              onCancel={() => setSignatureOpen(false)}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
